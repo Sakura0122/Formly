@@ -447,7 +447,7 @@ onBeforeUnmount(() => {
 
                 <div
                   v-if="multiSelectionBounds"
-                  class="pointer-events-none z-[2] border-2 border-emerald-500 bg-emerald-100/10"
+                  class="pointer-events-none z-2 border-2 border-emerald-500 bg-emerald-100/10"
                   :style="{
                     gridColumn: `${multiSelectionBounds.colStart + 1} / ${multiSelectionBounds.colEnd + 2}`,
                     gridRow: `${multiSelectionBounds.rowStart + 1} / ${multiSelectionBounds.rowEnd + 2}`,
@@ -460,7 +460,7 @@ onBeforeUnmount(() => {
                   class="relative min-w-0 border-r border-b border-slate-300 bg-white px-0.5 py-0"
                   :class="[
                     selectedCellIdSet.has(cell.id) ? 'bg-emerald-50/35' : '',
-                    activeCellId === cell.id ? 'z-[1]' : '',
+                    activeCellId === cell.id ? 'z-1' : '',
                   ]"
                   :style="{
                     gridColumn: `${cell.col + 1} / span ${cell.colSpan}`,
