@@ -1,0 +1,625 @@
+<script setup lang="ts">
+import { computed, ref } from 'vue'
+import { useRouter } from 'vue-router'
+
+import {
+  EDITOR_DEFAULT_IMAGE_URL,
+  EDITOR_DEFAULT_OPTIONS,
+  EDITOR_HEADER_ACTION_OPTIONS,
+  EDITOR_TABLE_DEFAULT_COLUMN_WIDTH,
+  EDITOR_TABLE_DEFAULT_ROW_HEIGHT,
+  EDITOR_TABLE_MIN_COLUMN_WIDTH,
+} from '@/constants/editor'
+import type {
+  EditorCanvasContextMenuPayload,
+  EditorCanvasDropPayload,
+  EditorCanvasSelectionPayload,
+  EditorCanvasTable,
+  EditorComponentType,
+  EditorContextMenuCommand,
+  EditorContextMenuItem,
+  EditorCreateTableForm,
+  EditorFieldInstance,
+  EditorFieldOption,
+  EditorFieldPatch,
+  EditorHeaderActionKey,
+  EditorPaletteItem,
+  EditorRemoveFieldPayload,
+  EditorResizeColumnPayload,
+  EditorResizeRowPayload,
+} from '@/types/editor'
+import EditorCanvas from '@/views/editor/components/editor-canvas.vue'
+import EditorComponentPalette from '@/views/editor/components/editor-component-palette.vue'
+import EditorConfigPanel from '@/views/editor/components/editor-config-panel.vue'
+import EditorContextMenu from '@/views/editor/components/editor-context-menu.vue'
+import EditorCreateTableDialog from '@/views/editor/components/editor-create-table-dialog.vue'
+import EditorHeader from '@/views/editor/components/editor-header.vue'
+import {
+  createEditorTable,
+  getCellById,
+  getFirstVisibleCell,
+  insertColumnRight,
+  insertRowBelow,
+  mergeSelectedCells,
+  splitMergedCell,
+  validateMergeSelection,
+} from '@/views/editor/utils/table'
+
+defineOptions({
+  name: 'EditorPage',
+})
+
+const router = useRouter()
+
+const dirty = ref(false)
+const saveLoading = ref(false)
+const publishLoading = ref(false)
+const table = ref<EditorCanvasTable | null>(null)
+const activeCellId = ref('')
+const activeFieldId = ref('')
+const selectedCellIds = ref<string[]>([])
+const selectionAnchorCellId = ref('')
+const tableDialogRef = ref<InstanceType<typeof EditorCreateTableDialog>>()
+const contextMenuRef = ref<InstanceType<typeof EditorContextMenu>>()
+const pendingTableMode = ref<'create' | 'rebuild'>('create')
+
+const cloneOptions = (options: EditorFieldOption[]) => {
+  return options.map((option) => ({
+    ...option,
+  }))
+}
+
+const createShortUuid = () => {
+  return crypto.randomUUID().replace(/-/g, '').slice(0, 8)
+}
+
+const createFieldDefaults = (type: EditorComponentType) => {
+  const options =
+    type === 'radio' || type === 'checkbox' || type === 'select'
+      ? cloneOptions(EDITOR_DEFAULT_OPTIONS)
+      : []
+
+  const placeholderMap: Record<EditorComponentType, string> = {
+    text: '',
+    image: '',
+    input: '请输入内容',
+    textarea: '请输入内容',
+    number: '',
+    radio: '',
+    checkbox: '',
+    select: '请选择',
+    date: '请选择日期',
+    switch: '',
+    upload: '',
+  }
+
+  return {
+    placeholder: placeholderMap[type],
+    horizontalAlign: 'center' as const,
+    textContent: type === 'text' ? '请输入文字内容' : '',
+    imageUrl:
+      type === 'image'
+        ? EDITOR_DEFAULT_IMAGE_URL
+        : '',
+    options,
+    switchActiveText: '开启',
+    switchInactiveText: '关闭',
+  }
+}
+
+const createFieldInstance = (type: EditorComponentType): EditorFieldInstance => {
+  const defaults = createFieldDefaults(type)
+
+  return {
+    uuid: createShortUuid(),
+    type,
+    placeholder: defaults.placeholder,
+    required: false,
+    helpText: '',
+    horizontalAlign: defaults.horizontalAlign,
+    textContent: defaults.textContent,
+    imageUrl: defaults.imageUrl,
+    options: defaults.options,
+    switchActiveText: defaults.switchActiveText,
+    switchInactiveText: defaults.switchInactiveText,
+  }
+}
+
+const activeCell = computed(() => {
+  return getCellById(table.value, activeCellId.value)
+})
+
+const cellFields = computed(() => {
+  return activeCell.value?.fields ?? []
+})
+
+const activeField = computed(() => {
+  return cellFields.value.find((field) => field.uuid === activeFieldId.value) ?? null
+})
+
+const mergeValidation = computed(() => {
+  return validateMergeSelection(table.value, selectedCellIds.value)
+})
+
+const replaceCell = (
+  cellId: string,
+  updater: (cell: NonNullable<typeof activeCell.value>) => NonNullable<typeof activeCell.value>,
+) => {
+  if (!table.value) {
+    return
+  }
+
+  table.value = {
+    ...table.value,
+    cells: table.value.cells.map((cell) => {
+      if (cell.id !== cellId) {
+        return cell
+      }
+
+      return updater(cell)
+    }),
+  }
+}
+
+const syncActiveFieldByCell = (cellId: string) => {
+  const nextCell = getCellById(table.value, cellId)
+
+  if (!nextCell) {
+    activeFieldId.value = ''
+    return
+  }
+
+  activeFieldId.value = nextCell.fields.at(-1)?.uuid ?? ''
+}
+
+const applySelection = (payload: EditorCanvasSelectionPayload) => {
+  activeCellId.value = payload.activeCellId
+  selectedCellIds.value = payload.selectedCellIds
+  selectionAnchorCellId.value = payload.selectionAnchorCellId
+  syncActiveFieldByCell(payload.activeCellId)
+}
+
+const collapseSelectionToCell = (cellId: string) => {
+  applySelection({
+    activeCellId: cellId,
+    selectedCellIds: [cellId],
+    selectionAnchorCellId: cellId,
+  })
+}
+
+const openTableDialog = (mode: 'create' | 'rebuild') => {
+  pendingTableMode.value = mode
+  tableDialogRef.value?.open(mode)
+}
+
+const handleBack = () => {
+  if (window.history.length > 1) {
+    router.back()
+    return
+  }
+
+  ElMessage.info('当前没有可返回的历史页面')
+}
+
+const handlePreview = () => {
+  ElMessage.info('预览能力将在后续阶段接入')
+}
+
+const handleSave = async () => {
+  saveLoading.value = true
+  dirty.value = false
+  await Promise.resolve()
+  saveLoading.value = false
+  ElMessage.success('保存事件已输出，等待后续接入真实逻辑')
+}
+
+const handlePublish = async () => {
+  publishLoading.value = true
+  dirty.value = false
+  await Promise.resolve()
+  publishLoading.value = false
+  ElMessage.success('发布事件已输出，等待后续接入真实逻辑')
+}
+
+const handleMoreAction = (action: EditorHeaderActionKey) => {
+  const currentAction = EDITOR_HEADER_ACTION_OPTIONS.find((item) => item.key === action)
+  ElMessage.info(`更多操作占位：${currentAction?.label ?? action}`)
+}
+
+const handleCreateTable = (payload: EditorCreateTableForm) => {
+  table.value = createEditorTable(
+    payload.rows,
+    payload.columns,
+    EDITOR_TABLE_DEFAULT_COLUMN_WIDTH,
+    EDITOR_TABLE_DEFAULT_ROW_HEIGHT,
+  )
+
+  const firstCell = getFirstVisibleCell(table.value)
+
+  if (firstCell) {
+    collapseSelectionToCell(firstCell.id)
+  } else {
+    activeCellId.value = ''
+    activeFieldId.value = ''
+    selectedCellIds.value = []
+    selectionAnchorCellId.value = ''
+  }
+
+  dirty.value = pendingTableMode.value === 'rebuild' ? true : dirty.value
+}
+
+const appendFieldToCell = (cellId: string, type: EditorComponentType) => {
+  if (!table.value) {
+    ElMessage.warning('请先在画布区域右键新建表格')
+    return
+  }
+
+  const nextField = createFieldInstance(type)
+
+  replaceCell(cellId, (cell) => ({
+    ...cell,
+    fields: [...cell.fields, nextField],
+  }))
+
+  collapseSelectionToCell(cellId)
+  activeFieldId.value = nextField.uuid
+  dirty.value = true
+}
+
+const handleSelectItem = (item: EditorPaletteItem) => {
+  if (!activeCellId.value) {
+    ElMessage.warning('请先选择单元格')
+    return
+  }
+
+  appendFieldToCell(activeCellId.value, item.type)
+}
+
+const handleDragStart = ({ item }: { item: EditorPaletteItem; event: DragEvent }) => {
+  void item
+}
+
+const handlePlaceItem = (payload: EditorCanvasDropPayload) => {
+  appendFieldToCell(payload.cellId, payload.type)
+}
+
+const handleChangeSelection = (payload: EditorCanvasSelectionPayload) => {
+  applySelection(payload)
+}
+
+const handleSelectField = ({
+  cellId,
+  fieldId,
+}: {
+  cellId: string
+  fieldId: string
+}) => {
+  collapseSelectionToCell(cellId)
+  activeFieldId.value = fieldId
+}
+
+const handleRemoveField = ({ cellId, fieldId }: EditorRemoveFieldPayload) => {
+  const targetCell = getCellById(table.value, cellId)
+
+  if (!targetCell) {
+    return
+  }
+
+  const nextFields = targetCell.fields.filter((field) => field.uuid !== fieldId)
+
+  replaceCell(cellId, (cell) => ({
+    ...cell,
+    fields: nextFields,
+  }))
+
+  collapseSelectionToCell(cellId)
+  activeFieldId.value = nextFields.at(-1)?.uuid ?? ''
+  dirty.value = true
+}
+
+const handleUpdateField = (patch: EditorFieldPatch) => {
+  if (!activeCell.value || !activeField.value) {
+    return
+  }
+
+  replaceCell(activeCell.value.id, (cell) => ({
+    ...cell,
+    fields: cell.fields.map((field) => {
+      if (field.uuid !== activeField.value?.uuid) {
+        return field
+      }
+
+      return {
+        ...field,
+        ...patch,
+      }
+    }),
+  }))
+
+  dirty.value = true
+}
+
+const handleChangeFieldType = (type: EditorComponentType) => {
+  if (!activeField.value) {
+    return
+  }
+
+  const defaults = createFieldDefaults(type)
+  const currentField = activeField.value
+
+  handleUpdateField({
+    type,
+    placeholder: defaults.placeholder,
+    horizontalAlign: currentField.horizontalAlign || defaults.horizontalAlign,
+    textContent: type === 'text' ? currentField.textContent || defaults.textContent : defaults.textContent,
+    imageUrl: type === 'image' ? currentField.imageUrl || defaults.imageUrl : defaults.imageUrl,
+    options:
+      type === 'radio' || type === 'checkbox' || type === 'select'
+        ? currentField.options.length
+          ? cloneOptions(currentField.options)
+          : defaults.options
+        : [],
+    switchActiveText:
+      type === 'switch'
+        ? currentField.switchActiveText || defaults.switchActiveText
+        : defaults.switchActiveText,
+    switchInactiveText:
+      type === 'switch'
+        ? currentField.switchInactiveText || defaults.switchInactiveText
+        : defaults.switchInactiveText,
+  })
+}
+
+const handleRemoveActiveField = (fieldId: string) => {
+  if (!activeCell.value) {
+    return
+  }
+
+  handleRemoveField({
+    cellId: activeCell.value.id,
+    fieldId,
+  })
+}
+
+const handleResizeColumn = ({ index, width }: EditorResizeColumnPayload) => {
+  if (!table.value) {
+    return
+  }
+
+  const nextColumnWidths = [...table.value.columnWidths]
+  const currentWidth = nextColumnWidths[index]
+  const nextWidth = nextColumnWidths[index + 1]
+
+  if (currentWidth === undefined) {
+    return
+  }
+
+  if (nextWidth === undefined) {
+    nextColumnWidths[index] = width
+  } else {
+    const delta = width - currentWidth
+    const shrinkableDelta = Math.min(delta, nextWidth - EDITOR_TABLE_MIN_COLUMN_WIDTH)
+    const growableDelta = Math.max(delta, -(currentWidth - EDITOR_TABLE_MIN_COLUMN_WIDTH))
+    const appliedDelta = delta >= 0 ? Math.max(0, shrinkableDelta) : Math.min(0, growableDelta)
+
+    nextColumnWidths[index] = currentWidth + appliedDelta
+    nextColumnWidths[index + 1] = nextWidth - appliedDelta
+  }
+
+  table.value = {
+    ...table.value,
+    columnWidths: nextColumnWidths,
+  }
+  dirty.value = true
+}
+
+const handleResizeRow = ({ index, height }: EditorResizeRowPayload) => {
+  if (!table.value) {
+    return
+  }
+
+  const nextRowHeights = [...table.value.rowHeights]
+  nextRowHeights[index] = height
+  table.value = {
+    ...table.value,
+    rowHeights: nextRowHeights,
+  }
+  dirty.value = true
+}
+
+const buildContextMenuItems = (): EditorContextMenuItem[] => {
+  if (!table.value) {
+    return [
+      {
+        command: 'create',
+        label: '新建表格',
+        icon: 'mdi:table-plus',
+      },
+    ]
+  }
+
+  const items: EditorContextMenuItem[] = []
+
+  if (mergeValidation.value.canMerge) {
+    items.push({
+      command: 'merge-cells',
+      label: '合并单元格',
+      icon: 'mdi:table-merge-cells',
+    })
+  }
+
+  if (activeCell.value && (activeCell.value.rowSpan > 1 || activeCell.value.colSpan > 1)) {
+    items.push({
+      command: 'split-cell',
+      label: '拆分单元格',
+      icon: 'mdi:table-split-cell',
+    })
+  }
+
+  if (activeCell.value) {
+    items.push(
+      {
+        command: 'insert-row-below',
+        label: '下方插入整行',
+        icon: 'mdi:table-row-plus-after',
+      },
+      {
+        command: 'insert-column-right',
+        label: '右侧插入整列',
+        icon: 'mdi:table-column-plus-after',
+      },
+    )
+  }
+
+  items.push({
+    command: 'rebuild',
+    label: '重建表格',
+    icon: 'mdi:table-refresh',
+  })
+
+  return items
+}
+
+const handleCanvasContextMenu = (payload: EditorCanvasContextMenuPayload) => {
+  if (table.value && payload.cellId && !selectedCellIds.value.includes(payload.cellId)) {
+    collapseSelectionToCell(payload.cellId)
+  }
+
+  contextMenuRef.value?.open(
+    {
+      x: payload.x,
+      y: payload.y,
+    },
+    buildContextMenuItems(),
+  )
+}
+
+const handleContextCommand = (command: EditorContextMenuCommand) => {
+  switch (command) {
+    case 'create':
+    case 'rebuild':
+      openTableDialog(command)
+      return
+
+    case 'merge-cells': {
+      if (!table.value) {
+        return
+      }
+
+      const validation = validateMergeSelection(table.value, selectedCellIds.value)
+
+      if (!validation.canMerge || !validation.topLeftCell) {
+        ElMessage.warning(validation.reason || '当前选区无法合并')
+        return
+      }
+
+      table.value = mergeSelectedCells(table.value, selectedCellIds.value)
+      collapseSelectionToCell(validation.topLeftCell.id)
+      dirty.value = true
+      return
+    }
+
+    case 'split-cell':
+      if (!table.value || !activeCell.value) {
+        return
+      }
+
+      table.value = splitMergedCell(table.value, activeCell.value.id)
+      collapseSelectionToCell(activeCell.value.id)
+      dirty.value = true
+      return
+
+    case 'insert-row-below':
+      if (!table.value || !activeCell.value) {
+        return
+      }
+
+      table.value = insertRowBelow(
+        table.value,
+        activeCell.value.id,
+        EDITOR_TABLE_DEFAULT_ROW_HEIGHT,
+      )
+      collapseSelectionToCell(activeCell.value.id)
+      dirty.value = true
+      return
+
+    case 'insert-column-right':
+      if (!table.value || !activeCell.value) {
+        return
+      }
+
+      table.value = insertColumnRight(
+        table.value,
+        activeCell.value.id,
+        EDITOR_TABLE_DEFAULT_COLUMN_WIDTH,
+      )
+      collapseSelectionToCell(activeCell.value.id)
+      dirty.value = true
+      return
+  }
+}
+</script>
+
+<template>
+  <div class="flex h-screen flex-col overflow-hidden bg-slate-100">
+    <EditorHeader
+      :dirty="dirty"
+      :publish-loading="publishLoading"
+      :save-loading="saveLoading"
+      status-text="草稿"
+      title="Formly 表单编辑器"
+      @back="handleBack"
+      @more-action="handleMoreAction"
+      @preview="handlePreview"
+      @publish="handlePublish"
+      @save="handleSave"
+    />
+
+    <main class="flex min-h-0 flex-1 gap-4 overflow-hidden p-4 lg:p-5">
+      <div class="min-h-0 w-29 shrink-0">
+        <EditorComponentPalette
+          @drag-start="handleDragStart"
+          @select-item="handleSelectItem"
+        />
+      </div>
+
+      <div class="min-w-0 min-h-0 flex-1">
+        <EditorCanvas
+          :active-cell-id="activeCellId"
+          :active-field-id="activeFieldId"
+          :selected-cell-ids="selectedCellIds"
+          :selection-anchor-cell-id="selectionAnchorCellId"
+          :table="table"
+          @change-selection="handleChangeSelection"
+          @context-menu="handleCanvasContextMenu"
+          @place-item="handlePlaceItem"
+          @resize-column="handleResizeColumn"
+          @resize-row="handleResizeRow"
+          @select-field="handleSelectField"
+        />
+      </div>
+
+      <div class="min-h-0 w-[320px] shrink-0">
+        <EditorConfigPanel
+          :active-cell="activeCell"
+          :active-field="activeField"
+          :cell-fields="cellFields"
+          @change-field-type="handleChangeFieldType"
+          @remove-field="handleRemoveActiveField"
+          @select-field="activeFieldId = $event"
+          @update-field="handleUpdateField"
+        />
+      </div>
+    </main>
+
+    <EditorCreateTableDialog
+      ref="tableDialogRef"
+      @confirm="handleCreateTable"
+    />
+
+    <EditorContextMenu
+      ref="contextMenuRef"
+      @command="handleContextCommand"
+    />
+  </div>
+</template>
