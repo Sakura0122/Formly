@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useElementSize, useEventListener } from '@vueuse/core'
-import { computed, ref } from 'vue'
+import { computed, ref, useTemplateRef } from 'vue'
 
 import {
   EDITOR_TABLE_HEADER_HEIGHT,
@@ -22,24 +22,35 @@ import EditorFieldPreview from '@/views/editor/components/editor-field-preview.v
 import { buildSelectionPayload, getCellRange, getVisibleCells } from '@/views/editor/utils/table'
 
 const props = defineProps<{
+  /** 当前整张表的数据 */
   table: EditorCanvasTable | null
+  /** 当前激活的单元格 id */
   activeCellId: string
+  /** 当前激活的字段 id */
   activeFieldId: string
+  /** 当前被选中的单元格 id 列表 */
   selectedCellIds: string[]
+  /** 框选时的锚点单元格 */
   selectionAnchorCellId: string
 }>()
 
 const emit = defineEmits<{
+  /** 切换选中单元格 */
   (e: 'change-selection', payload: EditorCanvasSelectionPayload): void
+  /** 选中字段 */
   (e: 'select-field', payload: EditorSelectFieldPayload): void
+  /** 放置组件 */
   (e: 'place-item', payload: EditorCanvasDropPayload): void
+  /** 右键菜单 */
   (e: 'context-menu', payload: EditorCanvasContextMenuPayload): void
+  /** 调整列宽 */
   (e: 'resize-column', payload: EditorResizeColumnPayload): void
+  /** 调整行高 */
   (e: 'resize-row', payload: EditorResizeRowPayload): void
 }>()
 
 const selectionDraggingAnchorId = ref('')
-const canvasViewportRef = ref<HTMLElement | null>(null)
+const canvasViewportRef = useTemplateRef<HTMLElement | null>('canvasViewportRef')
 const resizeState = ref<{
   type: 'column' | 'row'
   index: number
@@ -62,6 +73,7 @@ const toColumnLabel = (index: number) => {
   return result
 }
 
+// {"index":0, "columnNumber":1, "label":"A", "width":0}
 const columnHeaders = computed(() => {
   return Array.from({ length: props.table?.columns ?? 0 }, (_, index) => {
     return {
@@ -73,6 +85,7 @@ const columnHeaders = computed(() => {
   })
 })
 
+// 组件高度
 const estimateFieldHeight = (type: EditorComponentType) => {
   switch (type) {
     case 'text':
@@ -108,9 +121,12 @@ const estimateCellHeight = (typeList: EditorComponentType[]) => {
   )
 }
 
+// 自适应行高计算
 const effectiveRowHeights = computed(() => {
+  // 1. 复制一份原始行高数组（用户设置/默认值）
   const baseHeights = [...(props.table?.rowHeights ?? [])]
 
+  // 2. 遍历所有可见单元格，检查内容是否撑爆了行高
   getVisibleCells(props.table).forEach((cell) => {
     const estimatedHeight = estimateCellHeight(cell.fields.map((field) => field.type))
     const spanIndexes = Array.from({ length: cell.rowSpan }, (_, index) => cell.row - 1 + index)
@@ -135,6 +151,7 @@ const effectiveRowHeights = computed(() => {
   return baseHeights
 })
 
+// [{index:0, rowNumber:1, height:25}]
 const rowHeaders = computed(() => {
   return Array.from({ length: props.table?.rows ?? 0 }, (_, index) => {
     return {
@@ -149,31 +166,40 @@ const visibleCells = computed(() => {
   return getVisibleCells(props.table)
 })
 
+// 自适应列宽计算 [120, 120, 120]
 const displayColumnWidths = computed(() => {
   if (!props.table) {
     return []
   }
 
+  // 原始列宽数组（用户设置/默认值）
   const rawWidths = props.table.columnWidths
+  // 所有列宽之和
   const totalWidth = rawWidths.reduce((total, width) => total + width, 0)
+  // 可用宽度（视口宽度 - 行号列 - padding）
   const availableWidth = Math.max(canvasViewportWidth.value - EDITOR_TABLE_ROW_HEADER_WIDTH - 32, 0)
 
+  // 表格没超出视口 → 直接用原始宽度
   if (!totalWidth || !availableWidth || totalWidth <= availableWidth) {
     return rawWidths
   }
 
+  // 表格超出视口 → 按比例缩放
   const scale = availableWidth / totalWidth
 
   return rawWidths.map((width) => Math.max(1, Math.floor(width * scale)))
 })
 
+// 表格实际渲染宽度 32 + 120 + 120 + 120 = 392
 const displayTableWidth = computed(() => {
+  // 行号列宽度 + 所有（经过自适应后的）列宽之和
   return (
     EDITOR_TABLE_ROW_HEADER_WIDTH +
     displayColumnWidths.value.reduce((total, width) => total + width, 0)
   )
 })
 
+// [{index:0, columnNumber:1, label:"A", width:120}]
 const displayColumnHeaders = computed(() => {
   return columnHeaders.value.map((column, index) => {
     return {
@@ -183,12 +209,14 @@ const displayColumnHeaders = computed(() => {
   })
 })
 
+// 32px 120px 120px 120px
 const gridTemplateColumns = computed(() => {
   return `${EDITOR_TABLE_ROW_HEADER_WIDTH}px ${displayColumnHeaders.value
     .map((column) => `${column.width}px`)
     .join(' ')}`
 })
 
+// 25px 25px 25px 25px
 const gridTemplateRows = computed(() => {
   return `${EDITOR_TABLE_HEADER_HEIGHT}px ${rowHeaders.value
     .map((row) => `${row.height}px`)
@@ -297,6 +325,7 @@ const handleDrop = (event: DragEvent, cellId: string) => {
   })
 }
 
+// 打开右键菜单
 const handleContextMenu = (event: MouseEvent, cellId = '') => {
   emit('context-menu', {
     x: event.clientX,
@@ -372,6 +401,7 @@ useEventListener(window, 'mouseup', clearDraggingState)
                   width: `${displayTableWidth}px`,
                 }"
               >
+                <!-- 左上角的空白格 -->
                 <div
                   class="border-r border-b border-slate-300 bg-[#f2f6f7]"
                   :style="{
@@ -380,6 +410,7 @@ useEventListener(window, 'mouseup', clearDraggingState)
                   }"
                 />
 
+                <!-- 列头 -->
                 <div
                   v-for="column in displayColumnHeaders"
                   :key="column.columnNumber"
@@ -398,6 +429,7 @@ useEventListener(window, 'mouseup', clearDraggingState)
                   />
                 </div>
 
+                <!-- 行头 -->
                 <div
                   v-for="row in rowHeaders"
                   :key="row.rowNumber"
@@ -416,6 +448,7 @@ useEventListener(window, 'mouseup', clearDraggingState)
                   />
                 </div>
 
+                <!-- 多选边框 -->
                 <div
                   v-if="multiSelectionBounds"
                   class="pointer-events-none z-2 border-2 border-emerald-500 bg-emerald-100/10"
