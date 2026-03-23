@@ -5,11 +5,6 @@ import { computed, ref } from 'vue'
 import { EDITOR_PALETTE_GROUPS, EDITOR_PALETTE_ITEMS } from '@/constants/editor'
 import type { EditorPaletteItem } from '@/types/editor'
 
-const props = defineProps<{
-  items?: EditorPaletteItem[]
-  searchPlaceholder?: string
-}>()
-
 const emit = defineEmits<{
   (e: 'select-item', item: EditorPaletteItem): void
   (e: 'drag-start', payload: { item: EditorPaletteItem; event: DragEvent }): void
@@ -17,18 +12,14 @@ const emit = defineEmits<{
 
 const searchKeyword = ref('')
 
-const normalizedKeyword = computed(() => searchKeyword.value.trim().toLowerCase())
-
-const paletteItems = computed(() => props.items ?? EDITOR_PALETTE_ITEMS)
-
 const filteredItems = computed(() => {
-  if (!normalizedKeyword.value) {
-    return paletteItems.value
+  if (!searchKeyword.value) {
+    return EDITOR_PALETTE_ITEMS
   }
 
-  return paletteItems.value.filter((item) => {
-    const content = `${item.label} ${item.description}`.toLowerCase()
-    return content.includes(normalizedKeyword.value)
+  return EDITOR_PALETTE_ITEMS.filter((item) => {
+    const content = `${item.label} ${item.description}`
+    return content.includes(searchKeyword.value)
   })
 })
 
