@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { useElementSize, useEventListener } from '@vueuse/core'
+import { computed, ref } from 'vue'
 
 import {
   EDITOR_TABLE_HEADER_HEIGHT,
@@ -18,11 +19,7 @@ import type {
   EditorSelectFieldPayload,
 } from '@/types/editor'
 import EditorFieldPreview from '@/views/editor/components/editor-field-preview.vue'
-import {
-  buildSelectionPayload,
-  getCellRange,
-  getVisibleCells,
-} from '@/views/editor/utils/table'
+import { buildSelectionPayload, getCellRange, getVisibleCells } from '@/views/editor/utils/table'
 
 const props = defineProps<{
   table: EditorCanvasTable | null
@@ -43,17 +40,14 @@ const emit = defineEmits<{
 
 const selectionDraggingAnchorId = ref('')
 const canvasViewportRef = ref<HTMLElement | null>(null)
-const canvasViewportWidth = ref(0)
-const canvasResizeObserver = ref<ResizeObserver | null>(null)
-const resizeState = ref<
-  | {
-      type: 'column' | 'row'
-      index: number
-      startPointer: number
-      startSize: number
-    }
-  | null
->(null)
+const resizeState = ref<{
+  type: 'column' | 'row'
+  index: number
+  startPointer: number
+  startSize: number
+} | null>(null)
+
+const { width: canvasViewportWidth } = useElementSize(canvasViewportRef)
 
 const toColumnLabel = (index: number) => {
   let currentIndex = index
@@ -134,7 +128,8 @@ const effectiveRowHeights = computed(() => {
       return
     }
 
-    baseHeights[lastIndex] = (baseHeights[lastIndex] ?? EDITOR_TABLE_MIN_ROW_HEIGHT) + estimatedHeight - currentSpanHeight
+    baseHeights[lastIndex] =
+      (baseHeights[lastIndex] ?? EDITOR_TABLE_MIN_ROW_HEIGHT) + estimatedHeight - currentSpanHeight
   })
 
   return baseHeights
@@ -161,10 +156,7 @@ const displayColumnWidths = computed(() => {
 
   const rawWidths = props.table.columnWidths
   const totalWidth = rawWidths.reduce((total, width) => total + width, 0)
-  const availableWidth = Math.max(
-    canvasViewportWidth.value - EDITOR_TABLE_ROW_HEADER_WIDTH - 32,
-    0,
-  )
+  const availableWidth = Math.max(canvasViewportWidth.value - EDITOR_TABLE_ROW_HEADER_WIDTH - 32, 0)
 
   if (!totalWidth || !availableWidth || totalWidth <= availableWidth) {
     return rawWidths
@@ -176,7 +168,10 @@ const displayColumnWidths = computed(() => {
 })
 
 const displayTableWidth = computed(() => {
-  return EDITOR_TABLE_ROW_HEADER_WIDTH + displayColumnWidths.value.reduce((total, width) => total + width, 0)
+  return (
+    EDITOR_TABLE_ROW_HEADER_WIDTH +
+    displayColumnWidths.value.reduce((total, width) => total + width, 0)
+  )
 })
 
 const displayColumnHeaders = computed(() => {
@@ -254,9 +249,8 @@ const handleCellMouseDown = (event: MouseEvent, cellId: string) => {
 
   event.preventDefault()
 
-  const anchorCellId = event.shiftKey && props.selectionAnchorCellId
-    ? props.selectionAnchorCellId
-    : cellId
+  const anchorCellId =
+    event.shiftKey && props.selectionAnchorCellId ? props.selectionAnchorCellId : cellId
 
   selectionDraggingAnchorId.value = anchorCellId
 
@@ -359,39 +353,16 @@ const clearDraggingState = () => {
   resizeState.value = null
 }
 
-const syncCanvasViewportWidth = () => {
-  canvasViewportWidth.value = canvasViewportRef.value?.clientWidth ?? 0
-}
-
-onMounted(() => {
-  syncCanvasViewportWidth()
-  canvasResizeObserver.value = new ResizeObserver(() => {
-    syncCanvasViewportWidth()
-  })
-  canvasViewportRef.value && canvasResizeObserver.value.observe(canvasViewportRef.value)
-  window.addEventListener('mousemove', handleWindowMouseMove)
-  window.addEventListener('mouseup', clearDraggingState)
-})
-
-onBeforeUnmount(() => {
-  canvasResizeObserver.value?.disconnect()
-  window.removeEventListener('mousemove', handleWindowMouseMove)
-  window.removeEventListener('mouseup', clearDraggingState)
-})
+useEventListener(window, 'mousemove', handleWindowMouseMove)
+useEventListener(window, 'mouseup', clearDraggingState)
 </script>
 
 <template>
   <section class="flex h-full min-h-0 border border-slate-200 bg-white">
-    <div
-      class="h-full w-full min-h-0"
-      @contextmenu.prevent="handleContextMenu($event)"
-    >
+    <div class="h-full w-full min-h-0" @contextmenu.prevent="handleContextMenu($event)">
       <template v-if="table">
         <el-scrollbar class="h-full w-full">
-          <div
-            ref="canvasViewportRef"
-            class="min-h-full p-4 text-center"
-          >
+          <div ref="canvasViewportRef" class="min-h-full p-4 text-center">
             <div class="inline-block pr-4 text-left">
               <div
                 class="relative grid shrink-0 border-l border-t border-slate-300 bg-white"
@@ -486,11 +457,7 @@ onBeforeUnmount(() => {
                       v-for="field in cell.fields"
                       :key="field.uuid"
                       class="min-w-0 px-0 py-0 transition"
-                      :class="
-                        field.uuid === activeFieldId
-                          ? 'bg-sky-50/45'
-                          : ''
-                      "
+                      :class="field.uuid === activeFieldId ? 'bg-sky-50/45' : ''"
                       @click.stop="handleFieldClick(cell.id, field.uuid)"
                     >
                       <div class="pointer-events-none min-w-0">

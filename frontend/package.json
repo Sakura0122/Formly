@@ -17,6 +17,7 @@
   "dependencies": {
     "@iconify/vue": "^5.0.0",
     "@tailwindcss/vite": "^4.2.2",
+    "@vueuse/core": "^14.2.1",
     "element-plus": "^2.13.6",
     "pinia": "^3.0.4",
     "tailwindcss": "^4.2.2",

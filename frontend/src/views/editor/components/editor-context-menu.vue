@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
-import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { onClickOutside, useElementSize, useWindowSize } from '@vueuse/core'
+import { nextTick, ref, useTemplateRef, watch } from 'vue'
 
 import type { EditorContextMenuCommand, EditorContextMenuItem } from '@/types/editor'
 
@@ -8,14 +9,32 @@ const emit = defineEmits<{
   (e: 'command', command: EditorContextMenuCommand): void
 }>()
 
-const menuRef = ref<HTMLDivElement>()
+const menuRef = useTemplateRef<HTMLDivElement>('menuRef')
 const visible = ref(false)
 const items = ref<EditorContextMenuItem[]>([])
+const coordinateX = ref(0)
+const coordinateY = ref(0)
 const menuLeft = ref(0)
 const menuTop = ref(0)
+const safePadding = 12
+
+const { width: windowWidth, height: windowHeight } = useWindowSize()
+const { width: menuWidth, height: menuHeight } = useElementSize(menuRef)
 
 const close = () => {
   visible.value = false
+}
+
+const syncMenuPosition = () => {
+  if (!visible.value) {
+    return
+  }
+
+  const maxLeft = Math.max(safePadding, windowWidth.value - menuWidth.value - safePadding)
+  const maxTop = Math.max(safePadding, windowHeight.value - menuHeight.value - safePadding)
+
+  menuLeft.value = Math.max(safePadding, Math.min(coordinateX.value, maxLeft))
+  menuTop.value = Math.max(safePadding, Math.min(coordinateY.value, maxTop))
 }
 
 const open = async (
@@ -26,24 +45,14 @@ const open = async (
   nextItems: EditorContextMenuItem[],
 ) => {
   items.value = nextItems
+  coordinateX.value = coordinate.x
+  coordinateY.value = coordinate.y
   menuLeft.value = coordinate.x
   menuTop.value = coordinate.y
   visible.value = true
 
   await nextTick()
-
-  const menuWidth = menuRef.value?.offsetWidth ?? 0
-  const menuHeight = menuRef.value?.offsetHeight ?? 0
-  const safePadding = 12
-
-  menuLeft.value = Math.min(
-    coordinate.x,
-    window.innerWidth - menuWidth - safePadding,
-  )
-  menuTop.value = Math.min(
-    coordinate.y,
-    window.innerHeight - menuHeight - safePadding,
-  )
+  syncMenuPosition()
 }
 
 const handleCommand = (command: EditorContextMenuCommand) => {
@@ -51,34 +60,16 @@ const handleCommand = (command: EditorContextMenuCommand) => {
   close()
 }
 
-const handleWindowPointerDown = (event: PointerEvent) => {
-  if (!visible.value) {
-    return
-  }
-
-  if (menuRef.value?.contains(event.target as Node)) {
-    return
-  }
-
-  close()
-}
-
-const handleWindowResize = () => {
-  if (!visible.value) {
-    return
-  }
-
-  close()
-}
-
-onMounted(() => {
-  window.addEventListener('pointerdown', handleWindowPointerDown)
-  window.addEventListener('resize', handleWindowResize)
+watch([visible, coordinateX, coordinateY, windowWidth, windowHeight, menuWidth, menuHeight], () => {
+  syncMenuPosition()
 })
 
-onBeforeUnmount(() => {
-  window.removeEventListener('pointerdown', handleWindowPointerDown)
-  window.removeEventListener('resize', handleWindowResize)
+onClickOutside(menuRef, () => {
+  if (!visible.value) {
+    return
+  }
+
+  close()
 })
 
 defineExpose({
@@ -92,7 +83,7 @@ defineExpose({
     <div
       v-if="visible"
       ref="menuRef"
-      class="fixed z-50 min-w-[148px] overflow-hidden rounded-xl border border-slate-200 bg-white p-1.5 shadow-[0_16px_40px_rgba(15,23,42,0.14)]"
+      class="fixed z-50 min-w-37 overflow-hidden rounded-xl border border-slate-200 bg-white p-1.5 shadow-[0_16px_40px_rgba(15,23,42,0.14)]"
       :style="{
         left: `${menuLeft}px`,
         top: `${menuTop}px`,
@@ -107,10 +98,7 @@ defineExpose({
         type="button"
         @click="handleCommand(item.command)"
       >
-        <Icon
-          class="text-base text-slate-500"
-          :icon="item.icon"
-        />
+        <Icon class="text-base text-slate-500" :icon="item.icon" />
         <span>{{ item.label }}</span>
       </button>
     </div>
