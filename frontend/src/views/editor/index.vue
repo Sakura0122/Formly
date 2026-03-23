@@ -36,6 +36,7 @@ import EditorCreateTableDialog from '@/views/editor/components/editor-create-tab
 import EditorHeader from '@/views/editor/components/editor-header.vue'
 import {
   createEditorTable,
+  createUUID,
   getCellById,
   getFirstVisibleCell,
   insertColumnRight,
@@ -69,15 +70,10 @@ const cloneOptions = (options: EditorFieldOption[]) => {
   }))
 }
 
-const createShortUuid = () => {
-  return crypto.randomUUID().replace(/-/g, '').slice(0, 8)
-}
-
 const createFieldDefaults = (type: EditorComponentType) => {
-  const options =
-    type === 'radio' || type === 'checkbox' || type === 'select'
-      ? cloneOptions(EDITOR_DEFAULT_OPTIONS)
-      : []
+  const options = ['radio', 'checkbox', 'select'].includes(type)
+    ? cloneOptions(EDITOR_DEFAULT_OPTIONS)
+    : []
 
   const placeholderMap: Record<EditorComponentType, string> = {
     text: '',
@@ -108,7 +104,7 @@ const createFieldInstance = (type: EditorComponentType): EditorFieldInstance => 
   const defaults = createFieldDefaults(type)
 
   return {
-    uuid: createShortUuid(),
+    uuid: createUUID(),
     type,
     placeholder: defaults.placeholder,
     required: false,
@@ -270,10 +266,6 @@ const handleSelectItem = (item: EditorPaletteItem) => {
   }
 
   appendFieldToCell(activeCellId.value, item.type)
-}
-
-const handleDragStart = ({ item }: { item: EditorPaletteItem; event: DragEvent }) => {
-  void item
 }
 
 const handlePlaceItem = (payload: EditorCanvasDropPayload) => {
@@ -569,7 +561,7 @@ const handleContextCommand = (command: EditorContextMenuCommand) => {
 
     <main class="flex min-h-0 flex-1 gap-4 overflow-hidden p-4 lg:p-5">
       <div class="min-h-0 w-29 shrink-0">
-        <EditorComponentPalette @drag-start="handleDragStart" @select-item="handleSelectItem" />
+        <EditorComponentPalette @select-item="handleSelectItem" />
       </div>
 
       <div class="min-w-0 min-h-0 flex-1">

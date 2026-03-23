@@ -4,13 +4,13 @@ import type {
   EditorCanvasTable,
 } from '@/types/editor'
 
-const createShortUuid = () => {
-  return crypto.randomUUID().replace(/-/g, '').slice(0, 8)
+export const createUUID = (num: number = 8) => {
+  return crypto.randomUUID().replace(/-/g, '').slice(0, num)
 }
 
 const createCell = (row: number, col: number): EditorCanvasCell => {
   return {
-    id: `cell_${createShortUuid()}`,
+    id: `cell_${createUUID()}`,
     row,
     col,
     fields: [],
