@@ -49,6 +49,7 @@ const emit = defineEmits<{
   (e: 'resize-row', payload: EditorResizeRowPayload): void
 }>()
 
+// 框选的锚点单元格id
 const selectionDraggingAnchorId = ref('')
 const canvasViewportRef = useTemplateRef<HTMLElement | null>('canvasViewportRef')
 const resizeState = ref<{
@@ -73,7 +74,7 @@ const toColumnLabel = (index: number) => {
   return result
 }
 
-// {"index":0, "columnNumber":1, "label":"A", "width":0}
+// {"index": 0, "columnNumber": 1, "label": "A", "width": 0}
 const columnHeaders = computed(() => {
   return Array.from({ length: props.table?.columns ?? 0 }, (_, index) => {
     return {
@@ -151,7 +152,7 @@ const effectiveRowHeights = computed(() => {
   return baseHeights
 })
 
-// [{index:0, rowNumber:1, height:25}]
+// [{index: 0, rowNumber: 1, height: 25}]
 const rowHeaders = computed(() => {
   return Array.from({ length: props.table?.rows ?? 0 }, (_, index) => {
     return {
@@ -199,7 +200,7 @@ const displayTableWidth = computed(() => {
   )
 })
 
-// [{index:0, columnNumber:1, label:"A", width:120}]
+// [{index: 0, columnNumber: 1, label: "A", width: 120}]
 const displayColumnHeaders = computed(() => {
   return columnHeaders.value.map((column, index) => {
     return {
@@ -271,16 +272,16 @@ const emitRangeSelection = (anchorCellId: string, targetCellId: string) => {
 }
 
 const handleCellMouseDown = (event: MouseEvent, cellId: string) => {
+  // 0 代表左键，1 通常是中键，2 是右键
   if (event.button !== 0) {
     return
   }
 
   event.preventDefault()
 
-  const anchorCellId =
+  // 如果当前按着 Shift，并且组件里已经有旧的锚点就继续沿用旧锚点，否则就把当前点击的格子 cellId 当作新的锚点
+  selectionDraggingAnchorId.value =
     event.shiftKey && props.selectionAnchorCellId ? props.selectionAnchorCellId : cellId
-
-  selectionDraggingAnchorId.value = anchorCellId
 
   if (event.shiftKey && props.selectionAnchorCellId) {
     emitRangeSelection(props.selectionAnchorCellId, cellId)
@@ -291,6 +292,8 @@ const handleCellMouseDown = (event: MouseEvent, cellId: string) => {
 }
 
 const handleCellMouseEnter = (cellId: string) => {
+  // 是否正在拖选
+  // 如果锚点为空，说明用户只是普通移动鼠标，并没有按住鼠标在拖选
   if (!selectionDraggingAnchorId.value) {
     return
   }
@@ -424,7 +427,6 @@ useEventListener(window, 'mouseup', clearDraggingState)
                   <button
                     v-if="column.index < columnHeaders.length - 1"
                     class="absolute inset-y-0 -right-0.5 z-10 w-1 cursor-col-resize"
-                    type="button"
                     @mousedown.stop.prevent="startColumnResize($event, column.index)"
                   />
                 </div>
@@ -443,7 +445,6 @@ useEventListener(window, 'mouseup', clearDraggingState)
                   {{ row.rowNumber }}
                   <button
                     class="absolute inset-x-0 -bottom-0.5 z-10 h-1 cursor-row-resize"
-                    type="button"
                     @mousedown.stop.prevent="startRowResize($event, row.index)"
                   />
                 </div>
