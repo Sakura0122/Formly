@@ -246,7 +246,7 @@ const removeOption = (index: number) => {
                 <el-radio-button
                   v-for="option in horizontalAlignOptions"
                   :key="option.value"
-                  :label="option.value"
+                  :value="option.value"
                 >
                   {{ option.label }}
                 </el-radio-button>
