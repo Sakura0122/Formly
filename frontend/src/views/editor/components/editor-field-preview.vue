@@ -69,17 +69,13 @@ const imageJustifyClass = computed(() => {
 <template>
   <div
     v-if="field.type === 'text'"
-    class="min-h-6 break-words text-xs leading-5 text-slate-700"
+    class="min-h-6 wrap-break-word text-xs leading-5 text-slate-700"
     :class="textAlignClass"
   >
     {{ textContent }}
   </div>
 
-  <div
-    v-else-if="field.type === 'image'"
-    class="flex w-full"
-    :class="imageJustifyClass"
-  >
+  <div v-else-if="field.type === 'image'" class="flex w-full" :class="imageJustifyClass">
     <el-image
       class="block h-16 w-auto max-w-full overflow-hidden rounded object-cover"
       fit="cover"
@@ -120,11 +116,7 @@ const imageJustifyClass = computed(() => {
     size="small"
     class="flex min-w-0 flex-wrap gap-x-2 gap-y-1"
   >
-    <el-radio
-      v-for="option in previewOptions"
-      :key="option.value"
-      :label="option.value"
-    >
+    <el-radio v-for="option in previewOptions" :key="option.value" :label="option.value">
       {{ option.label }}
     </el-radio>
   </el-radio-group>
@@ -136,11 +128,7 @@ const imageJustifyClass = computed(() => {
     size="small"
     class="flex min-w-0 flex-wrap gap-x-2 gap-y-1"
   >
-    <el-checkbox
-      v-for="option in previewOptions"
-      :key="option.value"
-      :label="option.value"
-    >
+    <el-checkbox v-for="option in previewOptions" :key="option.value" :label="option.value">
       {{ option.label }}
     </el-checkbox>
   </el-checkbox-group>
@@ -171,20 +159,11 @@ const imageJustifyClass = computed(() => {
     type="date"
   />
 
-  <el-switch
-    v-else-if="field.type === 'switch'"
-    disabled
-    :model-value="true"
-    size="small"
-  />
+  <el-switch v-else-if="field.type === 'switch'" disabled :model-value="true" size="small" />
 
-  <el-upload
-    v-else
-    action="#"
-    disabled
-    :auto-upload="false"
-    :show-file-list="false"
-  >
-    <el-button class="w-full min-w-0" disabled plain size="small" type="primary">上传文件</el-button>
+  <el-upload v-else action="#" disabled :auto-upload="false" :show-file-list="false">
+    <el-button class="w-full min-w-0" disabled plain size="small" type="primary"
+      >上传文件</el-button
+    >
   </el-upload>
 </template>
