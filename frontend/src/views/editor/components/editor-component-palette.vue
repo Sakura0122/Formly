@@ -78,12 +78,10 @@ const handleDragStart = (event: DragEvent, item: EditorPaletteItem) => {
     <el-scrollbar class="min-h-0 flex-1">
       <div class="px-2 py-3">
         <div v-if="visibleGroups.length" class="space-y-4">
-          <section
-            v-for="group in visibleGroups"
-            :key="group.key"
-            class="space-y-2"
-          >
-            <div class="px-1 pb-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+          <section v-for="group in visibleGroups" :key="group.key" class="space-y-2">
+            <div
+              class="px-1 pb-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400"
+            >
               {{ group.label }}
             </div>
 

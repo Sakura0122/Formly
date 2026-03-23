@@ -97,10 +97,7 @@ const createFieldDefaults = (type: EditorComponentType) => {
     placeholder: placeholderMap[type],
     horizontalAlign: 'center' as const,
     textContent: type === 'text' ? '请输入文字内容' : '',
-    imageUrl:
-      type === 'image'
-        ? EDITOR_DEFAULT_IMAGE_URL
-        : '',
+    imageUrl: type === 'image' ? EDITOR_DEFAULT_IMAGE_URL : '',
     options,
     switchActiveText: '开启',
     switchInactiveText: '关闭',
@@ -287,13 +284,7 @@ const handleChangeSelection = (payload: EditorCanvasSelectionPayload) => {
   applySelection(payload)
 }
 
-const handleSelectField = ({
-  cellId,
-  fieldId,
-}: {
-  cellId: string
-  fieldId: string
-}) => {
+const handleSelectField = ({ cellId, fieldId }: { cellId: string; fieldId: string }) => {
   collapseSelectionToCell(cellId)
   activeFieldId.value = fieldId
 }
@@ -351,7 +342,8 @@ const handleChangeFieldType = (type: EditorComponentType) => {
     type,
     placeholder: defaults.placeholder,
     horizontalAlign: currentField.horizontalAlign || defaults.horizontalAlign,
-    textContent: type === 'text' ? currentField.textContent || defaults.textContent : defaults.textContent,
+    textContent:
+      type === 'text' ? currentField.textContent || defaults.textContent : defaults.textContent,
     imageUrl: type === 'image' ? currentField.imageUrl || defaults.imageUrl : defaults.imageUrl,
     options:
       type === 'radio' || type === 'checkbox' || type === 'select'
@@ -577,10 +569,7 @@ const handleContextCommand = (command: EditorContextMenuCommand) => {
 
     <main class="flex min-h-0 flex-1 gap-4 overflow-hidden p-4 lg:p-5">
       <div class="min-h-0 w-29 shrink-0">
-        <EditorComponentPalette
-          @drag-start="handleDragStart"
-          @select-item="handleSelectItem"
-        />
+        <EditorComponentPalette @drag-start="handleDragStart" @select-item="handleSelectItem" />
       </div>
 
       <div class="min-w-0 min-h-0 flex-1">
@@ -612,14 +601,8 @@ const handleContextCommand = (command: EditorContextMenuCommand) => {
       </div>
     </main>
 
-    <EditorCreateTableDialog
-      ref="tableDialogRef"
-      @confirm="handleCreateTable"
-    />
+    <EditorCreateTableDialog ref="tableDialogRef" @confirm="handleCreateTable" />
 
-    <EditorContextMenu
-      ref="contextMenuRef"
-      @command="handleContextCommand"
-    />
+    <EditorContextMenu ref="contextMenuRef" @command="handleContextCommand" />
   </div>
 </template>

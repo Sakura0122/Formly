@@ -38,11 +38,7 @@ defineExpose({
 </script>
 
 <template>
-  <el-dialog
-    v-model="visible"
-    :title="mode === 'create' ? '新建表格' : '重建表格'"
-    width="320px"
-  >
+  <el-dialog v-model="visible" :title="mode === 'create' ? '新建表格' : '重建表格'" width="320px">
     <el-form label-position="top">
       <el-form-item label="行数">
         <el-input-number

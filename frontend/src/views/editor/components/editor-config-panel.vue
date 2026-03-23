@@ -131,16 +131,10 @@ const editableOptions = computed(() => {
     return []
   }
 
-  return props.activeField.options.length
-    ? props.activeField.options
-    : [createOptionDraft(0)]
+  return props.activeField.options.length ? props.activeField.options : [createOptionDraft(0)]
 })
 
-const updateOption = (
-  index: number,
-  key: keyof EditorFieldOption,
-  value: string,
-) => {
+const updateOption = (index: number, key: keyof EditorFieldOption, value: string) => {
   const nextOptions = editableOptions.value.map((option, optionIndex) => {
     if (optionIndex !== index) {
       return option
@@ -158,10 +152,7 @@ const updateOption = (
 }
 
 const addOption = () => {
-  const nextOptions = [
-    ...editableOptions.value,
-    createOptionDraft(editableOptions.value.length),
-  ]
+  const nextOptions = [...editableOptions.value, createOptionDraft(editableOptions.value.length)]
 
   emit('update-field', {
     options: nextOptions,
@@ -208,12 +199,7 @@ const removeOption = (index: number) => {
               @click="emit('select-field', field.uuid)"
             >
               <span class="text-sm">{{ index + 1 }}. {{ getComponentLabel(field.type) }}</span>
-              <el-button
-                circle
-                plain
-                size="small"
-                @click.stop="emit('remove-field', field.uuid)"
-              >
+              <el-button circle plain size="small" @click.stop="emit('remove-field', field.uuid)">
                 <span class="text-xs">×</span>
               </el-button>
             </button>
@@ -331,11 +317,7 @@ const removeOption = (index: number) => {
                     placeholder="提交值"
                     @update:model-value="updateOption(index, 'value', String($event))"
                   />
-                  <el-button
-                    circle
-                    plain
-                    @click="removeOption(index)"
-                  >
+                  <el-button circle plain @click="removeOption(index)">
                     <span class="text-xs">×</span>
                   </el-button>
                 </div>
@@ -368,10 +350,7 @@ const removeOption = (index: number) => {
           </el-form>
         </div>
 
-        <el-empty
-          v-else
-          description="选中组件后可在这里配置"
-        />
+        <el-empty v-else description="选中组件后可在这里配置" />
       </div>
     </el-scrollbar>
   </aside>

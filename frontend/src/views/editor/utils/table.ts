@@ -180,7 +180,9 @@ export const validateMergeSelection = (
     }
   }
 
-  const intersectedVisibleCells = getVisibleCells(table).filter((cell) => intersectsRange(cell, bounds))
+  const intersectedVisibleCells = getVisibleCells(table).filter((cell) =>
+    intersectsRange(cell, bounds),
+  )
 
   if (intersectedVisibleCells.length !== selectedCells.length) {
     return {
@@ -227,10 +229,7 @@ export const validateMergeSelection = (
   }
 }
 
-export const mergeSelectedCells = (
-  table: EditorCanvasTable,
-  selectedCellIds: string[],
-) => {
+export const mergeSelectedCells = (table: EditorCanvasTable, selectedCellIds: string[]) => {
   const validation = validateMergeSelection(table, selectedCellIds)
 
   if (!validation.canMerge || !validation.bounds || !validation.topLeftCell) {
@@ -258,10 +257,7 @@ export const mergeSelectedCells = (
         colSpan: validation.bounds.colEnd - validation.bounds.colStart + 1,
         merged: false,
         mergeParentId: '',
-        fields:
-          contentSource && contentSource.id !== cell.id
-            ? contentSource.fields
-            : cell.fields,
+        fields: contentSource && contentSource.id !== cell.id ? contentSource.fields : cell.fields,
       }
     }
 
