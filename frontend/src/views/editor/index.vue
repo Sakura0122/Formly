@@ -78,8 +78,7 @@ const createFieldDefaults = (type: EditorComponentType) => {
   const placeholderMap: Record<EditorComponentType, string> = {
     text: '',
     image: '',
-    input: '请输入内容',
-    textarea: '请输入内容',
+    textbox: '',
     number: '',
     radio: '',
     checkbox: '',
@@ -92,7 +91,7 @@ const createFieldDefaults = (type: EditorComponentType) => {
   return {
     placeholder: placeholderMap[type],
     horizontalAlign: 'center' as const,
-    textContent: type === 'text' ? '请输入文字内容' : '',
+    textContent: type === 'text' ? '固定文字内容' : '',
     imageUrl: type === 'image' ? EDITOR_DEFAULT_IMAGE_URL : '',
     options,
     switchActiveText: '开启',

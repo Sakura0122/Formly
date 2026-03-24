@@ -36,8 +36,8 @@ const typeOptions = computed(() => {
 
 const supportsPlaceholder = computed(() => {
   return (
-    props.activeField?.type === 'input' ||
-    props.activeField?.type === 'textarea' ||
+    props.activeField?.type === 'textbox' ||
+    props.activeField?.type === 'number' ||
     props.activeField?.type === 'select' ||
     props.activeField?.type === 'date'
   )
@@ -253,11 +253,11 @@ const removeOption = (index: number) => {
               </el-radio-group>
             </el-form-item>
 
-            <el-form-item v-if="supportsTextContent" label="文字内容">
+            <el-form-item v-if="supportsTextContent" label="固定文字内容">
               <el-input
                 :autosize="{ minRows: 2, maxRows: 4 }"
                 :model-value="activeField.textContent"
-                placeholder="请输入文字内容"
+                placeholder="请输入固定文字内容"
                 type="textarea"
                 @update:model-value="emit('update-field', { textContent: String($event) })"
               />

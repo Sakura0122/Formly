@@ -45,8 +45,8 @@ export const EDITOR_PALETTE_GROUPS: EditorPaletteGroup[] = [
 export const EDITOR_PALETTE_ITEMS: EditorPaletteItem[] = [
   {
     type: 'text',
-    label: '文字',
-    description: '用于展示固定文本内容',
+    label: '固定文字',
+    description: '用于展示静态文本内容',
     icon: 'mdi:format-text',
     group: 'basic',
   },
@@ -58,17 +58,10 @@ export const EDITOR_PALETTE_ITEMS: EditorPaletteItem[] = [
     group: 'advanced',
   },
   {
-    type: 'input',
-    label: '单行输入',
-    description: '适用于姓名、标题、编号等短文本',
+    type: 'textbox',
+    label: '文本框',
+    description: '适用于表格内大多数文本录入场景',
     icon: 'mdi:form-textbox',
-    group: 'basic',
-  },
-  {
-    type: 'textarea',
-    label: '文本域',
-    description: '适用于备注、说明等长文本录入',
-    icon: 'mdi:form-textarea',
     group: 'basic',
   },
   {

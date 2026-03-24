@@ -27,12 +27,16 @@ const previewOptions = computed(() => {
       ]
 })
 
+const inlineCellPlaceholderText = computed(() => {
+  return props.field.placeholder || '/'
+})
+
 const placeholderText = computed(() => {
-  return props.field.placeholder || ''
+  return props.field.placeholder || '请输入内容'
 })
 
 const textContent = computed(() => {
-  return props.field.textContent || '请输入文字内容'
+  return props.field.textContent || '固定文字内容'
 })
 
 const imageUrl = computed(() => {
@@ -47,6 +51,17 @@ const textAlignClass = computed(() => {
       return 'text-right'
     default:
       return 'text-center'
+  }
+})
+
+const inlineCellJustifyClass = computed(() => {
+  switch (props.field.horizontalAlign) {
+    case 'left':
+      return 'justify-start'
+    case 'right':
+      return 'justify-end'
+    default:
+      return 'justify-center'
   }
 })
 
@@ -75,12 +90,10 @@ const inlinePreviewJustifyClass = computed(() => {
 </script>
 
 <template>
-  <div
-    v-if="field.type === 'text'"
-    class="min-h-6 wrap-break-word text-xs leading-5 text-slate-700"
-    :class="textAlignClass"
-  >
-    {{ textContent }}
+  <div v-if="field.type === 'text'" class="flex h-6 w-full min-w-0 items-center px-2" :class="inlineCellJustifyClass">
+    <div class="w-full truncate text-xs leading-5 text-slate-700" :class="textAlignClass">
+      {{ textContent }}
+    </div>
   </div>
 
   <div v-else-if="field.type === 'image'" class="flex w-full" :class="imageJustifyClass">
@@ -92,30 +105,21 @@ const inlinePreviewJustifyClass = computed(() => {
     />
   </div>
 
-  <el-input
-    v-else-if="field.type === 'input'"
-    class="w-full min-w-0"
-    disabled
-    :placeholder="placeholderText"
-    size="small"
-  />
+  <div v-else-if="field.type === 'textbox'" class="flex h-6 w-full min-w-0 items-center px-2" :class="inlineCellJustifyClass">
+    <div class="w-full truncate text-xs leading-5 text-slate-400" :class="textAlignClass">
+      {{ inlineCellPlaceholderText }}
+    </div>
+  </div>
 
-  <el-input
-    v-else-if="field.type === 'textarea'"
-    class="w-full min-w-0"
-    disabled
-    :autosize="{ minRows: 1, maxRows: 2 }"
-    :placeholder="placeholderText"
-    type="textarea"
-  />
-
-  <el-input-number
+  <div
     v-else-if="field.type === 'number'"
-    class="w-full min-w-0"
-    controls-position="right"
-    disabled
-    style="width: 100%"
-  />
+    class="flex h-6 w-full min-w-0 items-center px-2 tabular-nums"
+    :class="inlineCellJustifyClass"
+  >
+    <div class="w-full truncate text-xs leading-5 text-slate-400" :class="textAlignClass">
+      {{ inlineCellPlaceholderText }}
+    </div>
+  </div>
 
   <div v-else-if="field.type === 'radio'" class="flex w-full" :class="inlinePreviewJustifyClass">
     <div class="flex min-w-0 max-w-full flex-col gap-0.5 py-0.5">
