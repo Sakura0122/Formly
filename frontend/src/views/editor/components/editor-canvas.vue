@@ -97,11 +97,12 @@ const estimateChoiceFieldHeight = (field: EditorFieldInstance) => {
 const estimateFieldHeight = (field: EditorFieldInstance) => {
   switch (field.type) {
     case 'text':
-      return 34
+      return 24
     case 'image':
       return 74
-    case 'textarea':
-      return 42
+    case 'textbox':
+    case 'number':
+      return 24
     case 'radio':
     case 'checkbox':
       return estimateChoiceFieldHeight(field)
@@ -114,8 +115,22 @@ const estimateFieldHeight = (field: EditorFieldInstance) => {
   }
 }
 
+const isCompactSingleField = (fieldList: EditorFieldInstance[]) => {
+  if (fieldList.length !== 1) {
+    return false
+  }
+
+  const field = fieldList[0]!
+
+  return ['text', 'textbox', 'number'].includes(field.type)
+}
+
 const estimateCellHeight = (fieldList: EditorFieldInstance[]) => {
   if (!fieldList.length) {
+    return EDITOR_TABLE_MIN_ROW_HEIGHT
+  }
+
+  if (isCompactSingleField(fieldList)) {
     return EDITOR_TABLE_MIN_ROW_HEIGHT
   }
 
@@ -498,10 +513,13 @@ useEventListener(window, 'mouseup', clearDraggingState)
                       v-for="field in cell.fields"
                       :key="field.uuid"
                       class="min-w-0 px-0 py-0 transition"
-                      :class="field.uuid === activeFieldId ? 'bg-sky-50/45' : ''"
+                      :class="[
+                        field.uuid === activeFieldId ? 'bg-sky-50/45' : '',
+                        cell.fields.length === 1 ? 'flex h-full items-center' : '',
+                      ]"
                       @click.stop="handleFieldClick(cell.id, field.uuid)"
                     >
-                      <div class="pointer-events-none min-w-0">
+                      <div class="pointer-events-none min-w-0 w-full">
                         <EditorFieldPreview :field="field" />
                       </div>
                     </div>
