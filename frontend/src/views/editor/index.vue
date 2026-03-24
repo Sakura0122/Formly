@@ -83,7 +83,7 @@ const createFieldDefaults = (type: EditorComponentType) => {
     radio: '',
     checkbox: '',
     select: '请选择',
-    date: '请选择日期',
+    date: 'YYYY-MM-DD',
     switch: '',
     upload: '',
   }

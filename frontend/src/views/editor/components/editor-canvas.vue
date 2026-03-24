@@ -102,6 +102,7 @@ const estimateFieldHeight = (field: EditorFieldInstance) => {
       return 74
     case 'textbox':
     case 'number':
+    case 'date':
       return 24
     case 'radio':
     case 'checkbox':
@@ -122,7 +123,7 @@ const isCompactSingleField = (fieldList: EditorFieldInstance[]) => {
 
   const field = fieldList[0]!
 
-  return ['text', 'textbox', 'number'].includes(field.type)
+  return ['text', 'textbox', 'number', 'date'].includes(field.type)
 }
 
 const estimateCellHeight = (fieldList: EditorFieldInstance[]) => {
