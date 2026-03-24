@@ -9,11 +9,7 @@ const props = defineProps<{
 }>()
 
 const previewValue = computed(() => {
-  if (
-    props.field.type === 'radio' ||
-    props.field.type === 'checkbox' ||
-    props.field.type === 'select'
-  ) {
+  if (['radio', 'checkbox', 'select'].includes(props.field.type)) {
     return props.field.options[0]?.value ?? ''
   }
 
@@ -64,6 +60,7 @@ const imageJustifyClass = computed(() => {
       return 'justify-center'
   }
 })
+
 </script>
 
 <template>
@@ -109,29 +106,42 @@ const imageJustifyClass = computed(() => {
     style="width: 100%"
   />
 
-  <el-radio-group
-    v-else-if="field.type === 'radio'"
-    disabled
-    :model-value="previewValue"
-    size="small"
-    class="flex min-w-0 flex-wrap gap-x-2 gap-y-1"
-  >
-    <el-radio v-for="option in previewOptions" :key="option.value" :label="option.value">
-      {{ option.label }}
-    </el-radio>
-  </el-radio-group>
+  <div v-else-if="field.type === 'radio'" class="flex min-w-0 flex-col gap-0.5 py-0.5">
+    <div
+      v-for="option in previewOptions"
+      :key="option.value"
+      class="flex min-w-0 items-center gap-1 text-[11px] leading-4"
+      :class="option.value === previewValue ? 'text-slate-700' : 'text-slate-400'"
+    >
+      <span
+        class="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full border"
+        :class="option.value === previewValue ? 'border-sky-500' : 'border-slate-300'"
+      >
+        <span
+          v-if="option.value === previewValue"
+          class="h-1.5 w-1.5 rounded-full bg-sky-500"
+        />
+      </span>
+      <span class="min-w-0 truncate">{{ option.label }}</span>
+    </div>
+  </div>
 
-  <el-checkbox-group
-    v-else-if="field.type === 'checkbox'"
-    disabled
-    :model-value="[previewValue]"
-    size="small"
-    class="flex min-w-0 flex-wrap gap-x-2 gap-y-1"
-  >
-    <el-checkbox v-for="option in previewOptions" :key="option.value" :label="option.value">
-      {{ option.label }}
-    </el-checkbox>
-  </el-checkbox-group>
+  <div v-else-if="field.type === 'checkbox'" class="flex min-w-0 flex-col gap-0.5 py-0.5">
+    <div
+      v-for="option in previewOptions"
+      :key="option.value"
+      class="flex min-w-0 items-center gap-1 text-[11px] leading-4"
+      :class="option.value === previewValue ? 'text-slate-700' : 'text-slate-400'"
+    >
+      <span
+        class="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-sm border"
+        :class="option.value === previewValue ? 'border-sky-500 bg-sky-500/10' : 'border-slate-300'"
+      >
+        <span v-if="option.value === previewValue" class="h-2 w-2 rounded-sm bg-sky-500" />
+      </span>
+      <span class="min-w-0 truncate">{{ option.label }}</span>
+    </div>
+  </div>
 
   <el-select
     v-else-if="field.type === 'select'"
@@ -159,7 +169,14 @@ const imageJustifyClass = computed(() => {
     type="date"
   />
 
-  <el-switch v-else-if="field.type === 'switch'" disabled :model-value="true" size="small" />
+  <el-switch
+    v-else-if="field.type === 'switch'"
+    disabled
+    :model-value="true"
+    size="small"
+    :active-text="field.switchActiveText"
+    :inactive-text="field.switchInactiveText"
+  />
 
   <el-upload v-else action="#" disabled :auto-upload="false" :show-file-list="false">
     <el-button class="w-full min-w-0" disabled plain size="small" type="primary"

@@ -14,6 +14,7 @@ import type {
   EditorCanvasSelectionPayload,
   EditorCanvasTable,
   EditorComponentType,
+  EditorFieldInstance,
   EditorResizeColumnPayload,
   EditorResizeRowPayload,
   EditorSelectFieldPayload,
@@ -87,8 +88,14 @@ const columnHeaders = computed(() => {
 })
 
 // 组件高度
-const estimateFieldHeight = (type: EditorComponentType) => {
-  switch (type) {
+const estimateChoiceFieldHeight = (field: EditorFieldInstance) => {
+  const optionCount = Math.max(field.options.length, 1)
+
+  return optionCount * 16 + Math.max(optionCount - 1, 0) * 2 + 4
+}
+
+const estimateFieldHeight = (field: EditorFieldInstance) => {
+  switch (field.type) {
     case 'text':
       return 34
     case 'image':
@@ -97,7 +104,7 @@ const estimateFieldHeight = (type: EditorComponentType) => {
       return 42
     case 'radio':
     case 'checkbox':
-      return 28
+      return estimateChoiceFieldHeight(field)
     case 'upload':
       return 30
     case 'switch':
@@ -107,18 +114,18 @@ const estimateFieldHeight = (type: EditorComponentType) => {
   }
 }
 
-const estimateCellHeight = (typeList: EditorComponentType[]) => {
-  if (!typeList.length) {
+const estimateCellHeight = (fieldList: EditorFieldInstance[]) => {
+  if (!fieldList.length) {
     return EDITOR_TABLE_MIN_ROW_HEIGHT
   }
 
-  const contentHeight = typeList.reduce((total, type) => {
-    return total + estimateFieldHeight(type)
+  const contentHeight = fieldList.reduce((total, field) => {
+    return total + estimateFieldHeight(field)
   }, 0)
 
   return Math.max(
     EDITOR_TABLE_MIN_ROW_HEIGHT,
-    contentHeight + Math.max(0, typeList.length - 1) * 4 + 10,
+    contentHeight + Math.max(0, fieldList.length - 1) * 4 + 8,
   )
 }
 
@@ -129,7 +136,7 @@ const effectiveRowHeights = computed(() => {
 
   // 2. 遍历所有可见单元格，检查内容是否撑爆了行高
   getVisibleCells(props.table).forEach((cell) => {
-    const estimatedHeight = estimateCellHeight(cell.fields.map((field) => field.type))
+    const estimatedHeight = estimateCellHeight(cell.fields)
     const spanIndexes = Array.from({ length: cell.rowSpan }, (_, index) => cell.row - 1 + index)
     const currentSpanHeight = spanIndexes.reduce((total, index) => {
       return total + (baseHeights[index] ?? EDITOR_TABLE_MIN_ROW_HEIGHT)
