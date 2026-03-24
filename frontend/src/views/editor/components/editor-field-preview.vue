@@ -35,6 +35,10 @@ const placeholderText = computed(() => {
   return props.field.placeholder || '请输入内容'
 })
 
+const dateDisplayText = computed(() => {
+  return props.field.placeholder || 'YYYY-MM-DD'
+})
+
 const textContent = computed(() => {
   return props.field.textContent || '固定文字内容'
 })
@@ -178,15 +182,11 @@ const inlinePreviewJustifyClass = computed(() => {
     />
   </el-select>
 
-  <el-date-picker
-    v-else-if="field.type === 'date'"
-    class="w-full min-w-0"
-    disabled
-    :placeholder="placeholderText || '选择日期'"
-    style="width: 100%"
-    size="small"
-    type="date"
-  />
+  <div v-else-if="field.type === 'date'" class="flex h-6 w-full min-w-0 items-center px-2">
+    <div class="min-w-0 w-full whitespace-nowrap text-xs leading-5 text-slate-700" :class="textAlignClass">
+      {{ dateDisplayText }}
+    </div>
+  </div>
 
   <div v-else-if="field.type === 'switch'" class="flex w-full" :class="inlinePreviewJustifyClass">
     <el-switch
