@@ -58,29 +58,7 @@ const textAlignClass = computed(() => {
   }
 })
 
-const inlineCellJustifyClass = computed(() => {
-  switch (props.field.horizontalAlign) {
-    case 'left':
-      return 'justify-start'
-    case 'right':
-      return 'justify-end'
-    default:
-      return 'justify-center'
-  }
-})
-
-const imageJustifyClass = computed(() => {
-  switch (props.field.horizontalAlign) {
-    case 'left':
-      return 'justify-start'
-    case 'right':
-      return 'justify-end'
-    default:
-      return 'justify-center'
-  }
-})
-
-const inlinePreviewJustifyClass = computed(() => {
+const justifyClass = computed(() => {
   switch (props.field.horizontalAlign) {
     case 'left':
       return 'justify-start'
@@ -94,13 +72,13 @@ const inlinePreviewJustifyClass = computed(() => {
 </script>
 
 <template>
-  <div v-if="field.type === 'text'" class="flex h-6 w-full min-w-0 items-center px-2" :class="inlineCellJustifyClass">
+  <div v-if="field.type === 'text'" class="flex h-6 w-full min-w-0 items-center px-2" :class="justifyClass">
     <div class="w-full truncate text-xs leading-5 text-slate-700" :class="textAlignClass">
       {{ textContent }}
     </div>
   </div>
 
-  <div v-else-if="field.type === 'image'" class="flex w-full" :class="imageJustifyClass">
+  <div v-else-if="field.type === 'image'" class="flex w-full" :class="justifyClass">
     <el-image
       class="block h-16 w-auto max-w-full overflow-hidden rounded object-cover"
       fit="cover"
@@ -109,7 +87,7 @@ const inlinePreviewJustifyClass = computed(() => {
     />
   </div>
 
-  <div v-else-if="field.type === 'textbox'" class="flex h-6 w-full min-w-0 items-center px-2" :class="inlineCellJustifyClass">
+  <div v-else-if="field.type === 'textbox'" class="flex h-6 w-full min-w-0 items-center px-2" :class="justifyClass">
     <div class="w-full truncate text-xs leading-5 text-slate-400" :class="textAlignClass">
       {{ inlineCellPlaceholderText }}
     </div>
@@ -118,14 +96,14 @@ const inlinePreviewJustifyClass = computed(() => {
   <div
     v-else-if="field.type === 'number'"
     class="flex h-6 w-full min-w-0 items-center px-2 tabular-nums"
-    :class="inlineCellJustifyClass"
+    :class="justifyClass"
   >
     <div class="w-full truncate text-xs leading-5 text-slate-400" :class="textAlignClass">
       {{ inlineCellPlaceholderText }}
     </div>
   </div>
 
-  <div v-else-if="field.type === 'radio'" class="flex w-full" :class="inlinePreviewJustifyClass">
+  <div v-else-if="field.type === 'radio'" class="flex w-full" :class="justifyClass">
     <div class="flex min-w-0 max-w-full flex-col gap-0.5 py-0.5">
       <div
         v-for="option in previewOptions"
@@ -147,7 +125,7 @@ const inlinePreviewJustifyClass = computed(() => {
     </div>
   </div>
 
-  <div v-else-if="field.type === 'checkbox'" class="flex w-full" :class="inlinePreviewJustifyClass">
+  <div v-else-if="field.type === 'checkbox'" class="flex w-full" :class="justifyClass">
     <div class="flex min-w-0 max-w-full flex-col gap-0.5 py-0.5">
       <div
         v-for="option in previewOptions"
@@ -188,7 +166,7 @@ const inlinePreviewJustifyClass = computed(() => {
     </div>
   </div>
 
-  <div v-else-if="field.type === 'switch'" class="flex w-full" :class="inlinePreviewJustifyClass">
+  <div v-else-if="field.type === 'switch'" class="flex w-full" :class="justifyClass">
     <el-switch
       disabled
       :model-value="true"
@@ -198,7 +176,7 @@ const inlinePreviewJustifyClass = computed(() => {
     />
   </div>
 
-  <div v-else class="flex w-full" :class="inlinePreviewJustifyClass">
+  <div v-else class="flex w-full" :class="justifyClass">
     <el-upload action="#" disabled :auto-upload="false" :show-file-list="false">
       <el-button class="min-w-0" disabled plain size="small" type="primary">上传文件</el-button>
     </el-upload>
