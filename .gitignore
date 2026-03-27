@@ -13,7 +13,6 @@ dist
 dist-ssr
 coverage
 *.local
-plans
 
 # Editor directories and files
 .vscode/*
@@ -38,6 +37,3 @@ __screenshots__/
 
 # Vite
 *.timestamp-*-*.mjs
-
-AGENTS.md
-.codex
