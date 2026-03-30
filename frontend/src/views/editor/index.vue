@@ -56,9 +56,13 @@ const dirty = ref(false)
 const saveLoading = ref(false)
 const publishLoading = ref(false)
 const table = ref<EditorCanvasTable | null>(null)
+/** 当前激活的单元格id */
 const activeCellId = ref('')
+/** 当前激活的组件id */
 const activeFieldId = ref('')
+/** 选中的单元格id列表 */
 const selectedCellIds = ref<string[]>([])
+/** 选中的单元格锚点id */
 const selectionAnchorCellId = ref('')
 const tableDialogRef = ref<InstanceType<typeof EditorCreateTableDialog>>()
 const contextMenuRef = ref<InstanceType<typeof EditorContextMenu>>()
@@ -129,6 +133,9 @@ const activeField = computed(() => {
   return cellFields.value.find((field) => field.uuid === activeFieldId.value) ?? null
 })
 
+/**
+ * 合并单元格验证
+ */
 const mergeValidation = computed(() => {
   return validateMergeSelection(table.value, selectedCellIds.value)
 })
@@ -153,6 +160,10 @@ const replaceCell = (
   }
 }
 
+/**
+ * 同步激活组件
+ * @param cellId 单元格id
+ */
 const syncActiveFieldByCell = (cellId: string) => {
   const nextCell = getCellById(table.value, cellId)
 
@@ -164,6 +175,10 @@ const syncActiveFieldByCell = (cellId: string) => {
   activeFieldId.value = nextCell.fields.at(-1)?.uuid ?? ''
 }
 
+/**
+ * 应用单元格选择
+ * @param payload 单元格选择
+ */
 const applySelection = (payload: EditorCanvasSelectionPayload) => {
   activeCellId.value = payload.activeCellId
   selectedCellIds.value = payload.selectedCellIds
@@ -410,6 +425,10 @@ const handleResizeRow = ({ index, height }: EditorResizeRowPayload) => {
   dirty.value = true
 }
 
+/**
+ * 构建右键菜单项
+ * @returns 右键菜单项列表
+ */
 const buildContextMenuItems = (): EditorContextMenuItem[] => {
   if (!table.value) {
     return [
@@ -463,7 +482,9 @@ const buildContextMenuItems = (): EditorContextMenuItem[] => {
   return items
 }
 
+// 处理右键菜单
 const handleCanvasContextMenu = (payload: EditorCanvasContextMenuPayload) => {
+  // 如果右键点击的单元格不在当前选区，则将该单元格设为当前选区
   if (table.value && payload.cellId && !selectedCellIds.value.includes(payload.cellId)) {
     collapseSelectionToCell(payload.cellId)
   }
@@ -477,6 +498,10 @@ const handleCanvasContextMenu = (payload: EditorCanvasContextMenuPayload) => {
   )
 }
 
+/**
+ * 处理右键菜单命令
+ * @param command 命令
+ */
 const handleContextCommand = (command: EditorContextMenuCommand) => {
   switch (command) {
     case 'create':
@@ -484,6 +509,7 @@ const handleContextCommand = (command: EditorContextMenuCommand) => {
       openTableDialog(command)
       return
 
+    // 合并单元格
     case 'merge-cells': {
       if (!table.value) {
         return
@@ -512,6 +538,7 @@ const handleContextCommand = (command: EditorContextMenuCommand) => {
       dirty.value = true
       return
 
+    // 在下方插入整行
     case 'insert-row-below':
       if (!table.value || !activeCell.value) {
         return
@@ -526,6 +553,7 @@ const handleContextCommand = (command: EditorContextMenuCommand) => {
       dirty.value = true
       return
 
+    // 在右侧插入整列
     case 'insert-column-right':
       if (!table.value || !activeCell.value) {
         return

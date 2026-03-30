@@ -27,7 +27,7 @@ const props = defineProps<{
   table: EditorCanvasTable | null
   /** 当前激活的单元格 id */
   activeCellId: string
-  /** 当前激活的字段 id */
+  /** 当前激活的组件 id */
   activeFieldId: string
   /** 当前被选中的单元格 id 列表 */
   selectedCellIds: string[]
@@ -38,7 +38,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   /** 切换选中单元格 */
   (e: 'change-selection', payload: EditorCanvasSelectionPayload): void
-  /** 选中字段 */
+  /** 选中组件 */
   (e: 'select-field', payload: EditorSelectFieldPayload): void
   /** 放置组件 */
   (e: 'place-item', payload: EditorCanvasDropPayload): void
@@ -290,6 +290,11 @@ const multiSelectionBounds = computed(() => {
   )
 })
 
+/**
+ * 触发单元格范围选择
+ * @param anchorCellId 起始格
+ * @param targetCellId 终点格
+ */
 const emitRangeSelection = (anchorCellId: string, targetCellId: string) => {
   emit('change-selection', buildSelectionPayload(props.table, anchorCellId, targetCellId))
 }
