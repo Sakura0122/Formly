@@ -329,8 +329,15 @@ const handleCellMouseEnter = (cellId: string) => {
   emitRangeSelection(selectionDraggingAnchorId.value, cellId)
 }
 
+/**
+ * 处理组件点击
+ * @param cellId 单元格id
+ * @param fieldId 组件id
+ */
 const handleFieldClick = (cellId: string, fieldId: string) => {
+  // 把当前单元格设为选中状态
   emit('change-selection', createSingleSelection(cellId))
+  // 选中组件
   emit('select-field', {
     cellId,
     fieldId,
