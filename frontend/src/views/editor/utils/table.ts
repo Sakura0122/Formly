@@ -66,6 +66,14 @@ export const getVisibleCells = (table: EditorCanvasTable | null) => {
   return (table?.cells ?? []).filter((cell) => !cell.merged)
 }
 
+/**
+ * 获取单元格的范围
+ * @param cell 单元格
+ * @returns rowStart 起始行
+ * @returns rowEnd 结束行
+ * @returns colStart 起始列
+ * @returns colEnd 结束列
+ */
 export const getCellRange = (cell: EditorCanvasCell) => {
   return {
     rowStart: cell.row,
@@ -75,6 +83,12 @@ export const getCellRange = (cell: EditorCanvasCell) => {
   }
 }
 
+/**
+ * 判断单元格是否与范围相交
+ * @param cell 单元格
+ * @param bounds 范围
+ * @returns boolean
+ */
 const intersectsRange = (
   cell: EditorCanvasCell,
   bounds: {
@@ -94,11 +108,21 @@ const intersectsRange = (
   )
 }
 
+/**
+ * 选中了哪些单元格
+ * @param table 表格数据
+ * @param anchorCellId 起点格
+ * @param targetCellId 终点格
+ * @returns activeCellId 当前激活格是谁
+ * @returns selectionAnchorCellId 起点格是谁
+ * @returns selectedCellIds 选中的单元格id列表
+ */
 export const buildSelectionPayload = (
   table: EditorCanvasTable | null,
   anchorCellId: string,
   targetCellId: string,
 ): EditorCanvasSelectionPayload => {
+  // 先找到起点和终点对应的 cell
   const anchorCell = getCellById(table, anchorCellId)
   const targetCell = getCellById(table, targetCellId)
 
@@ -110,8 +134,10 @@ export const buildSelectionPayload = (
     }
   }
 
+  // 计算起点和终点的范围
   const anchorRange = getCellRange(anchorCell)
   const targetRange = getCellRange(targetCell)
+  // 计算范围的边界
   const bounds = {
     rowStart: Math.min(anchorRange.rowStart, targetRange.rowStart),
     rowEnd: Math.max(anchorRange.rowEnd, targetRange.rowEnd),
@@ -155,6 +181,15 @@ const buildSelectionBounds = (table: EditorCanvasTable, selectedCellIds: string[
   )
 }
 
+/**
+ * 验证合并单元格
+ * @param table 表格数据
+ * @param selectedCellIds 选中的单元格id列表
+ * @returns canMerge 是否可以合并
+ * @returns reason 原因
+ * @returns bounds 范围
+ * @returns topLeftCell 左上角单元格
+ */
 export const validateMergeSelection = (
   table: EditorCanvasTable | null,
   selectedCellIds: string[],
@@ -229,6 +264,12 @@ export const validateMergeSelection = (
   }
 }
 
+/**
+ * 合并单元格
+ * @param table 表格数据
+ * @param selectedCellIds 选中的单元格id列表
+ * @returns 合并后的表格数据
+ */
 export const mergeSelectedCells = (table: EditorCanvasTable, selectedCellIds: string[]) => {
   const validation = validateMergeSelection(table, selectedCellIds)
 
@@ -246,6 +287,7 @@ export const mergeSelectedCells = (table: EditorCanvasTable, selectedCellIds: st
       cell.col >= validation.bounds.colStart &&
       cell.col <= validation.bounds.colEnd
 
+    // 当前这个 cell 在不在这次要处理的矩形范围里？
     if (!inBounds) {
       return cell
     }
@@ -312,6 +354,13 @@ export const splitMergedCell = (table: EditorCanvasTable, cellId: string) => {
   }
 }
 
+/**
+ * 在下方插入整行
+ * @param table 表格数据
+ * @param cellId 单元格id
+ * @param defaultRowHeight 默认行高
+ * @returns 插入后的表格数据
+ */
 export const insertRowBelow = (
   table: EditorCanvasTable,
   cellId: string,
@@ -324,12 +373,16 @@ export const insertRowBelow = (
   }
 
   const insertedRow = activeCell.row + 1
+  // 找出哪些合并主格需要被纵向扩张
   const expandableMasters = getVisibleCells(table).filter((cell) => {
     const range = getCellRange(cell)
 
     return range.rowStart <= activeCell.row && range.rowEnd > activeCell.row
   })
 
+  // 如果某个主格从第 2 行跨到第 3 行
+  // 你现在在第 2 行下面插一行
+  // 那这个主格必须从 rowSpan = 2 变成 rowSpan = 3
   const shiftedCells = table.cells.map((cell) => {
     if (cell.row >= insertedRow) {
       return {
@@ -381,6 +434,13 @@ export const insertRowBelow = (
   }
 }
 
+/**
+ * 在右侧插入整列
+ * @param table 表格数据
+ * @param cellId 单元格id
+ * @param defaultColumnWidth 默认列宽
+ * @returns 插入后的表格数据
+ */
 export const insertColumnRight = (
   table: EditorCanvasTable,
   cellId: string,
