@@ -74,6 +74,10 @@ const cloneOptions = (options: EditorFieldOption[]) => {
   }))
 }
 
+/**
+ * 创建组件默认值
+ * @param type 组件类型
+ */
 const createFieldDefaults = (type: EditorComponentType) => {
   const options = ['radio', 'checkbox', 'select'].includes(type)
     ? cloneOptions(EDITOR_DEFAULT_OPTIONS)
@@ -121,14 +125,23 @@ const createFieldInstance = (type: EditorComponentType): EditorFieldInstance => 
   }
 }
 
+/**
+ * 当前激活的单元格
+ */
 const activeCell = computed(() => {
   return getCellById(table.value, activeCellId.value)
 })
 
+/**
+ * 当前激活单元格的组件列表
+ */
 const cellFields = computed(() => {
   return activeCell.value?.fields ?? []
 })
 
+/**
+ * 当前激活的组件
+ */
 const activeField = computed(() => {
   return cellFields.value.find((field) => field.uuid === activeFieldId.value) ?? null
 })
@@ -140,6 +153,11 @@ const mergeValidation = computed(() => {
   return validateMergeSelection(table.value, selectedCellIds.value)
 })
 
+/**
+ * 替换单元格
+ * @param cellId 单元格id
+ * @param updater 单元格更新器
+ */
 const replaceCell = (
   cellId: string,
   updater: (cell: NonNullable<typeof activeCell.value>) => NonNullable<typeof activeCell.value>,
@@ -314,6 +332,10 @@ const handleRemoveField = ({ cellId, fieldId }: EditorRemoveFieldPayload) => {
   dirty.value = true
 }
 
+/**
+ * 更新组件
+ * @param patch 组件更新
+ */
 const handleUpdateField = (patch: EditorFieldPatch) => {
   if (!activeCell.value || !activeField.value) {
     return
@@ -336,6 +358,10 @@ const handleUpdateField = (patch: EditorFieldPatch) => {
   dirty.value = true
 }
 
+/**
+ * 改变组件类型
+ * @param type 组件类型
+ */
 const handleChangeFieldType = (type: EditorComponentType) => {
   if (!activeField.value) {
     return

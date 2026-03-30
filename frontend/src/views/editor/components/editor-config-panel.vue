@@ -13,15 +13,22 @@ import type {
 } from '@/types/editor'
 
 const props = defineProps<{
+  /** 当前激活的单元格 */
   activeCell: EditorCanvasCell | null
+  /** 当前激活的组件 */
   activeField: EditorFieldInstance | null
+  /** 单元格组件列表 */
   cellFields: EditorFieldInstance[]
 }>()
 
 const emit = defineEmits<{
+  /** 更新组件 */
   (e: 'update-field', patch: EditorFieldPatch): void
+  /** 改变组件类型 */
   (e: 'change-field-type', type: EditorComponentType): void
+  /** 选中组件 */
   (e: 'select-field', fieldId: string): void
+  /** 删除组件 */
   (e: 'remove-field', fieldId: string): void
 }>()
 
@@ -134,6 +141,12 @@ const editableOptions = computed(() => {
   return props.activeField.options.length ? props.activeField.options : [createOptionDraft(0)]
 })
 
+/**
+ * 更新选项
+ * @param index 选项索引
+ * @param key 选项键
+ * @param value 选项值
+ */
 const updateOption = (index: number, key: keyof EditorFieldOption, value: string) => {
   const nextOptions = editableOptions.value.map((option, optionIndex) => {
     if (optionIndex !== index) {
@@ -151,6 +164,9 @@ const updateOption = (index: number, key: keyof EditorFieldOption, value: string
   })
 }
 
+/**
+ * 添加选项
+ */
 const addOption = () => {
   const nextOptions = [...editableOptions.value, createOptionDraft(editableOptions.value.length)]
 
@@ -159,6 +175,10 @@ const addOption = () => {
   })
 }
 
+/**
+ * 删除选项
+ * @param index 选项索引
+ */
 const removeOption = (index: number) => {
   const nextOptions = editableOptions.value.filter((_, optionIndex) => optionIndex !== index)
 
