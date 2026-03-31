@@ -40,8 +40,6 @@ import {
   deleteColumn,
   deleteRow,
   getCellById,
-  getFirstVisibleCell,
-  getSelectableCellAt,
   insertColumnRight,
   insertRowBelow,
   mergeSelectedCells,
@@ -230,30 +228,6 @@ const resetEditorSelection = () => {
   selectionAnchorCellId.value = ''
 }
 
-/**
- * 选中最近的可见单元格
- * @param nextTable 表格数据
- * @param row 行
- * @param col 列
- */
-const selectNearestVisibleCell = (nextTable: EditorCanvasTable, row: number, col: number) => {
-  const nextCell =
-    getSelectableCellAt(nextTable, Math.min(Math.max(row, 1), nextTable.rows), col) ??
-    getSelectableCellAt(
-      nextTable,
-      Math.min(Math.max(row, 1), nextTable.rows),
-      Math.min(Math.max(col, 1), nextTable.columns),
-    ) ??
-    getFirstVisibleCell(nextTable)
-
-  if (!nextCell) {
-    resetEditorSelection()
-    return
-  }
-
-  collapseSelectionToCell(nextCell.id)
-}
-
 const openTableDialog = (mode: 'create' | 'rebuild') => {
   pendingTableMode.value = mode
   tableDialogRef.value?.open(mode)
@@ -304,14 +278,7 @@ const handleCreateTable = (payload: EditorCreateTableForm) => {
     EDITOR_TABLE_DEFAULT_COLUMN_WIDTH,
     EDITOR_TABLE_DEFAULT_ROW_HEIGHT,
   )
-
-  const firstCell = getFirstVisibleCell(table.value)
-
-  if (firstCell) {
-    collapseSelectionToCell(firstCell.id)
-  } else {
-    resetEditorSelection()
-  }
+  resetEditorSelection()
 
   dirty.value = pendingTableMode.value === 'rebuild' ? true : dirty.value
 }
@@ -340,7 +307,7 @@ const appendFieldToCell = (cellId: string, type: EditorComponentType) => {
 }
 
 /**
- * 处理选择组件
+ * 处理点击的组件
  * @param item 组件
  */
 const handleSelectItem = (item: EditorPaletteItem) => {
@@ -352,19 +319,44 @@ const handleSelectItem = (item: EditorPaletteItem) => {
   appendFieldToCell(activeCellId.value, item.type)
 }
 
+/**
+ * 处理放置组件
+ * @param payload 放置组件参数
+ */
 const handlePlaceItem = (payload: EditorCanvasDropPayload) => {
   appendFieldToCell(payload.cellId, payload.type)
 }
 
+/**
+ * 处理选中的单元格
+ * @param payload 选中的单元格参数
+ */
 const handleChangeSelection = (payload: EditorCanvasSelectionPayload) => {
   applySelection(payload)
 }
 
+/**
+ * 处理清空选区
+ */
+const handleClearSelection = () => {
+  resetEditorSelection()
+}
+
+/**
+ * 处理点击组件
+ * @param cellId 单元格id
+ * @param fieldId 组件id
+ */
 const handleSelectField = ({ cellId, fieldId }: { cellId: string; fieldId: string }) => {
   collapseSelectionToCell(cellId)
   activeFieldId.value = fieldId
 }
 
+/**
+ * 处理移除组件
+ * @param cellId 单元格id
+ * @param fieldId 组件id
+ */
 const handleRemoveField = ({ cellId, fieldId }: EditorRemoveFieldPayload) => {
   const targetCell = getCellById(table.value, cellId)
 
@@ -662,9 +654,6 @@ const handleContextCommand = (command: EditorContextMenuCommand) => {
         return
       }
 
-      const fallbackRow = activeCell.value.row
-      const fallbackCol = activeCell.value.col
-      // 删除行
       const nextTable = deleteRow(table.value, activeCell.value.id)
 
       table.value = nextTable
@@ -676,8 +665,7 @@ const handleContextCommand = (command: EditorContextMenuCommand) => {
         return
       }
 
-      // 选中最近的可见单元格
-      selectNearestVisibleCell(nextTable, Math.min(fallbackRow, nextTable.rows), fallbackCol)
+      resetEditorSelection()
       dirty.value = true
       return
     }
@@ -688,9 +676,6 @@ const handleContextCommand = (command: EditorContextMenuCommand) => {
         return
       }
 
-      const fallbackRow = activeCell.value.row
-      const fallbackCol = activeCell.value.col
-      // 删除列
       const nextTable = deleteColumn(table.value, activeCell.value.id)
 
       table.value = nextTable
@@ -702,8 +687,7 @@ const handleContextCommand = (command: EditorContextMenuCommand) => {
         return
       }
 
-      // 选中最近的可见单元格
-      selectNearestVisibleCell(nextTable, fallbackRow, Math.min(fallbackCol, nextTable.columns))
+      resetEditorSelection()
       dirty.value = true
       return
     }
@@ -739,6 +723,7 @@ const handleContextCommand = (command: EditorContextMenuCommand) => {
           :selection-anchor-cell-id="selectionAnchorCellId"
           :table="table"
           @change-selection="handleChangeSelection"
+          @clear-selection="handleClearSelection"
           @context-menu="handleCanvasContextMenu"
           @place-item="handlePlaceItem"
           @resize-column="handleResizeColumn"

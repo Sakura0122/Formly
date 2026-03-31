@@ -79,20 +79,6 @@ export const getVisibleCells = (table: EditorCanvasTable | null) => {
   return (table?.cells ?? []).filter((cell) => !cell.merged)
 }
 
-export const getSelectableCellAt = (table: EditorCanvasTable | null, row: number, col: number) => {
-  const cell = getCellAt(table, row, col)
-
-  if (!cell) {
-    return null
-  }
-
-  if (!cell.merged) {
-    return cell
-  }
-
-  return getCellById(table, cell.mergeParentId)
-}
-
 /**
  * 获取单元格的范围
  * @param cell 单元格
@@ -753,8 +739,4 @@ export const insertColumnRight = (
     columnWidths: nextColumnWidths,
     cells: sortCells(nextCells),
   }
-}
-
-export const getFirstVisibleCell = (table: EditorCanvasTable | null) => {
-  return getVisibleCells(table)[0] ?? null
 }
