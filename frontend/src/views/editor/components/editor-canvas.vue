@@ -372,6 +372,11 @@ const handleContextMenu = (event: MouseEvent, cellId = '') => {
   })
 }
 
+/**
+ * 开始调整列宽
+ * @param event 鼠标事件
+ * @param index 列索引
+ */
 const startColumnResize = (event: MouseEvent, index: number) => {
   resizeState.value = {
     type: 'column',
@@ -381,6 +386,11 @@ const startColumnResize = (event: MouseEvent, index: number) => {
   }
 }
 
+/**
+ * 开始调整行高
+ * @param event 鼠标事件
+ * @param index 行索引
+ */
 const startRowResize = (event: MouseEvent, index: number) => {
   resizeState.value = {
     type: 'row',
@@ -460,7 +470,6 @@ useEventListener(window, 'mouseup', clearDraggingState)
                 >
                   {{ column.label }}
                   <button
-                    v-if="column.index < columnHeaders.length - 1"
                     class="absolute inset-y-0 -right-0.5 z-10 w-1 cursor-col-resize"
                     @mousedown.stop.prevent="startColumnResize($event, column.index)"
                   />
