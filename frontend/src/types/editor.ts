@@ -126,6 +126,8 @@ export type EditorContextMenuCommand =
   | 'split-cell'
   | 'insert-row-below'
   | 'insert-column-right'
+  | 'delete-row'
+  | 'delete-column'
 
 export interface EditorContextMenuItem {
   command: EditorContextMenuCommand
