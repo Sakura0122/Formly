@@ -38,6 +38,8 @@ const props = defineProps<{
 const emit = defineEmits<{
   /** 切换选中单元格 */
   (e: 'change-selection', payload: EditorCanvasSelectionPayload): void
+  /** 清空选区 */
+  (e: 'clear-selection'): void
   /** 选中组件 */
   (e: 'select-field', payload: EditorSelectFieldPayload): void
   /** 放置组件 */
@@ -329,6 +331,14 @@ const handleCellMouseEnter = (cellId: string) => {
   emitRangeSelection(selectionDraggingAnchorId.value, cellId)
 }
 
+const handleCanvasBlankMouseDown = (event: MouseEvent) => {
+  if (event.button !== 0 || event.target !== event.currentTarget) {
+    return
+  }
+
+  emit('clear-selection')
+}
+
 /**
  * 处理组件点击
  * @param cellId 单元格id
@@ -439,8 +449,12 @@ useEventListener(window, 'mouseup', clearDraggingState)
     <div class="h-full w-full min-h-0" @contextmenu.prevent="handleContextMenu($event)">
       <template v-if="table">
         <el-scrollbar class="h-full w-full">
-          <div ref="canvasViewportRef" class="min-h-full p-4 text-center">
-            <div class="inline-block pr-4 text-left">
+          <div
+            ref="canvasViewportRef"
+            class="min-h-full p-4 text-center"
+            @mousedown="handleCanvasBlankMouseDown"
+          >
+            <div class="inline-block text-left">
               <div
                 class="relative grid shrink-0 border-l border-t border-slate-300 bg-white"
                 :style="{
