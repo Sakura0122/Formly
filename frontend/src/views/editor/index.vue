@@ -37,8 +37,11 @@ import EditorHeader from '@/views/editor/components/editor-header.vue'
 import {
   createEditorTable,
   createUUID,
+  deleteColumn,
+  deleteRow,
   getCellById,
   getFirstVisibleCell,
+  getSelectableCellAt,
   insertColumnRight,
   insertRowBelow,
   mergeSelectedCells,
@@ -217,6 +220,40 @@ const collapseSelectionToCell = (cellId: string) => {
   })
 }
 
+/**
+ * 重置选区
+ */
+const resetEditorSelection = () => {
+  activeCellId.value = ''
+  activeFieldId.value = ''
+  selectedCellIds.value = []
+  selectionAnchorCellId.value = ''
+}
+
+/**
+ * 选中最近的可见单元格
+ * @param nextTable 表格数据
+ * @param row 行
+ * @param col 列
+ */
+const selectNearestVisibleCell = (nextTable: EditorCanvasTable, row: number, col: number) => {
+  const nextCell =
+    getSelectableCellAt(nextTable, Math.min(Math.max(row, 1), nextTable.rows), col) ??
+    getSelectableCellAt(
+      nextTable,
+      Math.min(Math.max(row, 1), nextTable.rows),
+      Math.min(Math.max(col, 1), nextTable.columns),
+    ) ??
+    getFirstVisibleCell(nextTable)
+
+  if (!nextCell) {
+    resetEditorSelection()
+    return
+  }
+
+  collapseSelectionToCell(nextCell.id)
+}
+
 const openTableDialog = (mode: 'create' | 'rebuild') => {
   pendingTableMode.value = mode
   tableDialogRef.value?.open(mode)
@@ -273,10 +310,7 @@ const handleCreateTable = (payload: EditorCreateTableForm) => {
   if (firstCell) {
     collapseSelectionToCell(firstCell.id)
   } else {
-    activeCellId.value = ''
-    activeFieldId.value = ''
-    selectedCellIds.value = []
-    selectionAnchorCellId.value = ''
+    resetEditorSelection()
   }
 
   dirty.value = pendingTableMode.value === 'rebuild' ? true : dirty.value
@@ -514,6 +548,16 @@ const buildContextMenuItems = (): EditorContextMenuItem[] => {
         label: '右侧插入整列',
         icon: 'mdi:table-column-plus-after',
       },
+      {
+        command: 'delete-row',
+        label: '删除整行',
+        icon: 'mdi:table-row-remove',
+      },
+      {
+        command: 'delete-column',
+        label: '删除整列',
+        icon: 'mdi:table-column-remove',
+      },
     )
   }
 
@@ -611,6 +655,58 @@ const handleContextCommand = (command: EditorContextMenuCommand) => {
       collapseSelectionToCell(activeCell.value.id)
       dirty.value = true
       return
+
+    // 删除整行
+    case 'delete-row': {
+      if (!table.value || !activeCell.value) {
+        return
+      }
+
+      const fallbackRow = activeCell.value.row
+      const fallbackCol = activeCell.value.col
+      // 删除行
+      const nextTable = deleteRow(table.value, activeCell.value.id)
+
+      table.value = nextTable
+
+      if (!nextTable) {
+        // 如果表格为空，重置选区
+        resetEditorSelection()
+        dirty.value = true
+        return
+      }
+
+      // 选中最近的可见单元格
+      selectNearestVisibleCell(nextTable, Math.min(fallbackRow, nextTable.rows), fallbackCol)
+      dirty.value = true
+      return
+    }
+
+    // 删除整列
+    case 'delete-column': {
+      if (!table.value || !activeCell.value) {
+        return
+      }
+
+      const fallbackRow = activeCell.value.row
+      const fallbackCol = activeCell.value.col
+      // 删除列
+      const nextTable = deleteColumn(table.value, activeCell.value.id)
+
+      table.value = nextTable
+
+      if (!nextTable) {
+        // 如果表格为空，重置选区
+        resetEditorSelection()
+        dirty.value = true
+        return
+      }
+
+      // 选中最近的可见单元格
+      selectNearestVisibleCell(nextTable, fallbackRow, Math.min(fallbackCol, nextTable.columns))
+      dirty.value = true
+      return
+    }
   }
 }
 </script>

@@ -79,6 +79,20 @@ export const getVisibleCells = (table: EditorCanvasTable | null) => {
   return (table?.cells ?? []).filter((cell) => !cell.merged)
 }
 
+export const getSelectableCellAt = (table: EditorCanvasTable | null, row: number, col: number) => {
+  const cell = getCellAt(table, row, col)
+
+  if (!cell) {
+    return null
+  }
+
+  if (!cell.merged) {
+    return cell
+  }
+
+  return getCellById(table, cell.mergeParentId)
+}
+
 /**
  * 获取单元格的范围
  * @param cell 单元格
@@ -365,6 +379,224 @@ export const splitMergedCell = (table: EditorCanvasTable, cellId: string) => {
       }),
     ),
   }
+}
+
+const createCellKey = (row: number, col: number) => {
+  return `${row}:${col}`
+}
+
+/**
+ * 通过可见单元格重建表格
+ * @param rows 表格行数
+ * @param columns 表格列数
+ * @param visibleCells 可见单元格列表
+ * @param columnWidths 列宽列表
+ * @param rowHeights 行高列表
+ * @returns 重建后的表格数据
+ */
+const rebuildTableByVisibleCells = (
+  rows: number,
+  columns: number,
+  visibleCells: EditorCanvasCell[],
+  columnWidths: number[],
+  rowHeights: number[],
+): EditorCanvasTable => {
+  const masterCellMap = new Map<string, EditorCanvasCell>()
+  const mergedCellParentMap = new Map<string, string>()
+
+  visibleCells.forEach((cell) => {
+    const normalizedCell = {
+      ...cell,
+      merged: false,
+      mergeParentId: '',
+    }
+    const range = getCellRange(normalizedCell)
+
+    masterCellMap.set(createCellKey(normalizedCell.row, normalizedCell.col), normalizedCell)
+
+    for (let row = range.rowStart; row <= range.rowEnd; row += 1) {
+      for (let col = range.colStart; col <= range.colEnd; col += 1) {
+        if (row === normalizedCell.row && col === normalizedCell.col) {
+          continue
+        }
+
+        mergedCellParentMap.set(createCellKey(row, col), normalizedCell.id)
+      }
+    }
+  })
+
+  const cells: EditorCanvasCell[] = []
+
+  for (let row = 1; row <= rows; row += 1) {
+    for (let col = 1; col <= columns; col += 1) {
+      const cellKey = createCellKey(row, col)
+      const masterCell = masterCellMap.get(cellKey)
+
+      if (masterCell) {
+        cells.push(masterCell)
+        continue
+      }
+
+      const mergeParentId = mergedCellParentMap.get(cellKey)
+
+      if (mergeParentId) {
+        cells.push({
+          ...createCell(row, col),
+          merged: true,
+          mergeParentId,
+        })
+        continue
+      }
+
+      cells.push(createCell(row, col))
+    }
+  }
+
+  return {
+    rows,
+    columns,
+    cells: sortCells(cells),
+    columnWidths,
+    rowHeights,
+  }
+}
+
+/**
+ * 删除整行
+ * @param table 表格数据
+ * @param cellId 单元格id
+ * @returns 删除后的表格数据
+ */
+export const deleteRow = (table: EditorCanvasTable, cellId: string) => {
+  const activeCell = getCellById(table, cellId)
+
+  if (!activeCell) {
+    return table
+  }
+
+  if (table.rows <= 1) {
+    return null
+  }
+
+  const deletedRow = activeCell.row
+  const nextVisibleCells = getVisibleCells(table).flatMap((cell) => {
+    const range = getCellRange(cell)
+
+    if (deletedRow < range.rowStart) {
+      return [
+        {
+          ...cell,
+          row: cell.row - 1,
+          merged: false,
+          mergeParentId: '',
+        },
+      ]
+    }
+
+    if (deletedRow > range.rowEnd) {
+      return [
+        {
+          ...cell,
+          merged: false,
+          mergeParentId: '',
+        },
+      ]
+    }
+
+    const nextRowSpan = cell.rowSpan - 1
+
+    if (nextRowSpan <= 0) {
+      return []
+    }
+
+    return [
+      {
+        ...cell,
+        rowSpan: nextRowSpan,
+        merged: false,
+        mergeParentId: '',
+      },
+    ]
+  })
+  const nextRowHeights = [...table.rowHeights]
+  nextRowHeights.splice(deletedRow - 1, 1)
+
+  return rebuildTableByVisibleCells(
+    table.rows - 1,
+    table.columns,
+    nextVisibleCells,
+    [...table.columnWidths],
+    nextRowHeights,
+  )
+}
+
+/**
+ * 删除整列
+ * @param table 表格数据
+ * @param cellId 单元格id
+ * @returns 删除后的表格数据
+ */
+export const deleteColumn = (table: EditorCanvasTable, cellId: string) => {
+  const activeCell = getCellById(table, cellId)
+
+  if (!activeCell) {
+    return table
+  }
+
+  if (table.columns <= 1) {
+    return null
+  }
+
+  const deletedColumn = activeCell.col
+  const nextVisibleCells = getVisibleCells(table).flatMap((cell) => {
+    const range = getCellRange(cell)
+
+    if (deletedColumn < range.colStart) {
+      return [
+        {
+          ...cell,
+          col: cell.col - 1,
+          merged: false,
+          mergeParentId: '',
+        },
+      ]
+    }
+
+    if (deletedColumn > range.colEnd) {
+      return [
+        {
+          ...cell,
+          merged: false,
+          mergeParentId: '',
+        },
+      ]
+    }
+
+    const nextColSpan = cell.colSpan - 1
+
+    if (nextColSpan <= 0) {
+      return []
+    }
+
+    return [
+      {
+        ...cell,
+        colSpan: nextColSpan,
+        merged: false,
+        mergeParentId: '',
+      },
+    ]
+  })
+  const nextColumnWidths = [...table.columnWidths]
+  nextColumnWidths.splice(deletedColumn - 1, 1)
+
+  return rebuildTableByVisibleCells(
+    table.rows,
+    table.columns - 1,
+    nextVisibleCells,
+    nextColumnWidths,
+    [...table.rowHeights],
+  )
 }
 
 /**
