@@ -107,6 +107,11 @@ const createFieldDefaults = (type: EditorComponentType) => {
   }
 }
 
+/**
+ * 创建组件实例
+ * @param type 组件类型
+ * @returns 组件实例
+ */
 const createFieldInstance = (type: EditorComponentType): EditorFieldInstance => {
   const defaults = createFieldDefaults(type)
 
@@ -251,6 +256,10 @@ const handleMoreAction = (action: EditorHeaderActionKey) => {
   ElMessage.info(`更多操作占位：${currentAction?.label ?? action}`)
 }
 
+/**
+ * 处理创建表格
+ * @param payload 表格创建表单
+ */
 const handleCreateTable = (payload: EditorCreateTableForm) => {
   table.value = createEditorTable(
     payload.rows,
@@ -273,6 +282,11 @@ const handleCreateTable = (payload: EditorCreateTableForm) => {
   dirty.value = pendingTableMode.value === 'rebuild' ? true : dirty.value
 }
 
+/**
+ * 添加组件到单元格
+ * @param cellId 单元格id
+ * @param type 组件类型
+ */
 const appendFieldToCell = (cellId: string, type: EditorComponentType) => {
   if (!table.value) {
     ElMessage.warning('请先在画布区域右键新建表格')
@@ -291,6 +305,10 @@ const appendFieldToCell = (cellId: string, type: EditorComponentType) => {
   dirty.value = true
 }
 
+/**
+ * 处理选择组件
+ * @param item 组件
+ */
 const handleSelectItem = (item: EditorPaletteItem) => {
   if (!activeCellId.value) {
     ElMessage.warning('请先选择单元格')
