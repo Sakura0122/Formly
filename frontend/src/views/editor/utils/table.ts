@@ -21,6 +21,14 @@ const createCell = (row: number, col: number): EditorCanvasCell => {
   }
 }
 
+/**
+ * 创建表格
+ * @param rows 表格行数
+ * @param columns 表格列数
+ * @param defaultColumnWidth 默认列宽
+ * @param defaultRowHeight 默认行高
+ * @returns 表格
+ */
 export const createEditorTable = (
   rows: number,
   columns: number,
@@ -44,6 +52,11 @@ export const createEditorTable = (
   }
 }
 
+/**
+ * 排序单元格
+ * @param cells 单元格列表
+ * @returns 排序后的单元格列表
+ */
 export const sortCells = (cells: EditorCanvasCell[]) => {
   return [...cells].sort((left, right) => {
     if (left.row !== right.row) {
