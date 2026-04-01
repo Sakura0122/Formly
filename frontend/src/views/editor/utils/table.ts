@@ -332,6 +332,12 @@ export const mergeSelectedCells = (table: EditorCanvasTable, selectedCellIds: st
   }
 }
 
+/**
+ * 拆分单元格
+ * @param table 表格数据
+ * @param cellId 单元格id
+ * @returns 拆分后的表格数据
+ */
 export const splitMergedCell = (table: EditorCanvasTable, cellId: string) => {
   const targetCell = getCellById(table, cellId)
 

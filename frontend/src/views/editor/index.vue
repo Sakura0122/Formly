@@ -61,9 +61,9 @@ const table = ref<EditorCanvasTable | null>(null)
 const activeCellId = ref('')
 /** 当前激活的组件id */
 const activeFieldId = ref('')
-/** 选中的单元格id列表 */
+/** 整块选区的id列表 - 浅绿色高亮边框 */
 const selectedCellIds = ref<string[]>([])
-/** 选中的单元格锚点id */
+/** 范围选择的起点id - Shift 选区和鼠标拖选用 */
 const selectionAnchorCellId = ref('')
 const tableDialogRef = ref<InstanceType<typeof EditorCreateTableDialog>>()
 const contextMenuRef = ref<InstanceType<typeof EditorContextMenu>>()
@@ -608,6 +608,7 @@ const handleContextCommand = (command: EditorContextMenuCommand) => {
       return
     }
 
+    // 拆分单元格
     case 'split-cell':
       if (!table.value || !activeCell.value) {
         return
