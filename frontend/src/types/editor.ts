@@ -79,6 +79,10 @@ export interface EditorCanvasTable {
   rowHeights: number[]
 }
 
+export interface EditorHistorySnapshot {
+  table: EditorCanvasTable | null
+}
+
 export interface EditorCanvasDropPayload {
   cellId: string
   type: EditorComponentType
