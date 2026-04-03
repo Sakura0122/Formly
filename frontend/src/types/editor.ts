@@ -56,6 +56,10 @@ export interface EditorFieldInstance {
   switchInactiveText: string
 }
 
+export interface EditorCellClipboard {
+  fields: EditorFieldInstance[]
+}
+
 export interface EditorCanvasCell {
   id: string
   row: number

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useEventListener } from '@vueuse/core'
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
@@ -11,6 +12,7 @@ import {
   EDITOR_TABLE_MIN_COLUMN_WIDTH,
 } from '@/constants/editor'
 import type {
+  EditorCellClipboard,
   EditorCanvasContextMenuPayload,
   EditorCanvasDropPayload,
   EditorCanvasSelectionPayload,
@@ -68,10 +70,34 @@ const selectionAnchorCellId = ref('')
 const tableDialogRef = ref<InstanceType<typeof EditorCreateTableDialog>>()
 const contextMenuRef = ref<InstanceType<typeof EditorContextMenu>>()
 const pendingTableMode = ref<'create' | 'rebuild'>('create')
+/** 单元格剪贴板 */
+const cellClipboard = ref<EditorCellClipboard | null>(null)
 
+/**
+ * 克隆选项
+ * @param options 选项
+ */
 const cloneOptions = (options: EditorFieldOption[]) => {
   return options.map((option) => ({
     ...option,
+  }))
+}
+
+/**
+ * 深度克隆组件实例
+ * @param fields 组件实例列表
+ * @param options 选项
+ */
+const cloneFieldInstances = (
+  fields: EditorFieldInstance[],
+  options: {
+    regenerateUuid?: boolean
+  } = {},
+) => {
+  return fields.map((field) => ({
+    ...field,
+    uuid: options.regenerateUuid ? createUUID() : field.uuid,
+    options: cloneOptions(field.options),
   }))
 }
 
@@ -263,6 +289,11 @@ const handlePublish = async () => {
 }
 
 const handleMoreAction = (action: EditorHeaderActionKey) => {
+  if (action === 'shortcut') {
+    ElMessage.info('已支持快捷键：Ctrl/Cmd+C 复制单元格组件，Ctrl/Cmd+V 粘贴单元格组件')
+    return
+  }
+
   const currentAction = EDITOR_HEADER_ACTION_OPTIONS.find((item) => item.key === action)
   ElMessage.info(`更多操作占位：${currentAction?.label ?? action}`)
 }
@@ -448,6 +479,174 @@ const handleRemoveActiveField = (fieldId: string) => {
     fieldId,
   })
 }
+
+/**
+ * 获取复制源单元格
+ * @returns 复制源单元格
+ */
+const getCopySourceCell = () => {
+  if (!table.value) {
+    ElMessage.warning('请先在画布区域右键新建表格')
+    return null
+  }
+
+  if (selectedCellIds.value.length > 1) {
+    ElMessage.warning('当前仅支持复制单个单元格')
+    return null
+  }
+
+  if (!activeCell.value) {
+    ElMessage.warning('请先选择要复制的单元格')
+    return null
+  }
+
+  return activeCell.value
+}
+
+/**
+ * 获取粘贴目标单元格id列表
+ * @returns 目标单元格id列表
+ */
+const getPasteTargetCellIds = () => {
+  if (!table.value) {
+    ElMessage.warning('请先在画布区域右键新建表格')
+    return []
+  }
+
+  if (selectedCellIds.value.length) {
+    return [...selectedCellIds.value]
+  }
+
+  if (activeCell.value) {
+    return [activeCell.value.id]
+  }
+
+  ElMessage.warning('请先选择要粘贴的单元格')
+  return []
+}
+
+/**
+ * 处理复制当前单元格组件
+ * @returns 是否成功
+ */
+const handleCopyActiveCell = () => {
+  const targetCell = getCopySourceCell()
+
+  if (!targetCell) {
+    return false
+  }
+
+  if (!targetCell.fields.length) {
+    ElMessage.warning('当前单元格没有可复制的组件')
+    return false
+  }
+
+  cellClipboard.value = {
+    fields: cloneFieldInstances(targetCell.fields),
+  }
+  ElMessage.success(`已复制 ${targetCell.fields.length} 个组件`)
+
+  return true
+}
+
+/**
+ * 处理粘贴当前单元格组件
+ * @returns 是否成功
+ */
+const handlePasteToActiveCell = () => {
+  const targetCellIds = getPasteTargetCellIds()
+
+  if (!targetCellIds.length) {
+    return false
+  }
+
+  if (!cellClipboard.value?.fields.length) {
+    ElMessage.warning('请先复制单元格组件')
+    return false
+  }
+
+  if (!table.value) {
+    return false
+  }
+
+  const targetCellIdSet = new Set(targetCellIds)
+
+  table.value = {
+    ...table.value,
+    cells: table.value.cells.map((cell) => {
+      if (!targetCellIdSet.has(cell.id)) {
+        return cell
+      }
+
+      return {
+        ...cell,
+        fields: cloneFieldInstances(cellClipboard.value?.fields ?? [], {
+          regenerateUuid: true,
+        }),
+      }
+    }),
+  }
+
+  const focusCellId = targetCellIds.includes(activeCellId.value)
+    ? activeCellId.value
+    : (targetCellIds[0] ?? '')
+
+  if (!focusCellId) {
+    return false
+  }
+
+  if (targetCellIds.length === 1) {
+    collapseSelectionToCell(focusCellId)
+  } else {
+    activeCellId.value = focusCellId
+    selectionAnchorCellId.value = selectionAnchorCellId.value || focusCellId
+    syncActiveFieldByCell(focusCellId)
+  }
+
+  dirty.value = true
+
+  return true
+}
+
+/**
+ * 判断目标是否为可编辑元素
+ * @param target 目标元素
+ */
+const isEditableTarget = (target: EventTarget | null) => {
+  return target instanceof HTMLElement
+    ? Boolean(target.closest('input, textarea, select, [contenteditable="true"]'))
+    : false
+}
+
+const handleWindowKeydown = (event: KeyboardEvent) => {
+  // 过滤输入法状态、已阻止默认行为、非 Cmd/Ctrl 组合键、Shift/Alt 存在、可编辑元素
+  if (
+    event.isComposing ||
+    event.defaultPrevented ||
+    !(event.metaKey || event.ctrlKey) ||
+    event.shiftKey ||
+    event.altKey ||
+    isEditableTarget(event.target)
+  ) {
+    return
+  }
+
+  const key = event.key.toLowerCase()
+
+  if (key === 'c') {
+    if (handleCopyActiveCell()) {
+      event.preventDefault()
+    }
+
+    return
+  }
+
+  if (key === 'v' && handlePasteToActiveCell()) {
+    event.preventDefault()
+  }
+}
+
+useEventListener(window, 'keydown', handleWindowKeydown)
 
 const handleResizeColumn = ({ index, width }: EditorResizeColumnPayload) => {
   if (!table.value) {
