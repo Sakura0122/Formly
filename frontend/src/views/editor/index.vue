@@ -13,6 +13,7 @@ import {
 } from '@/constants/editor'
 import type {
   EditorCellClipboard,
+  EditorHistorySnapshot,
   EditorCanvasContextMenuPayload,
   EditorCanvasDropPayload,
   EditorCanvasSelectionPayload,
@@ -69,9 +70,10 @@ const selectedCellIds = ref<string[]>([])
 const selectionAnchorCellId = ref('')
 const tableDialogRef = ref<InstanceType<typeof EditorCreateTableDialog>>()
 const contextMenuRef = ref<InstanceType<typeof EditorContextMenu>>()
-const pendingTableMode = ref<'create' | 'rebuild'>('create')
 /** 单元格剪贴板 */
 const cellClipboard = ref<EditorCellClipboard | null>(null)
+const undoHistory = ref<EditorHistorySnapshot[]>([])
+const redoHistory = ref<EditorHistorySnapshot[]>([])
 
 /**
  * 克隆选项
@@ -185,22 +187,90 @@ const mergeValidation = computed(() => {
   return validateMergeSelection(table.value, selectedCellIds.value)
 })
 
+const canUndo = computed(() => {
+  return undoHistory.value.length > 0
+})
+
+const canRedo = computed(() => {
+  return redoHistory.value.length > 0
+})
+
+const cloneFieldOption = (option: EditorFieldOption) => {
+  return {
+    label: option.label,
+    value: option.value,
+  }
+}
+
+const cloneFieldSnapshot = (field: EditorFieldInstance): EditorFieldInstance => {
+  return {
+    uuid: field.uuid,
+    type: field.type,
+    placeholder: field.placeholder,
+    required: field.required,
+    helpText: field.helpText,
+    horizontalAlign: field.horizontalAlign,
+    textContent: field.textContent,
+    imageUrl: field.imageUrl,
+    options: field.options.map((option) => cloneFieldOption(option)),
+    switchActiveText: field.switchActiveText,
+    switchInactiveText: field.switchInactiveText,
+  }
+}
+
+const cloneTableSnapshot = (currentTable: EditorCanvasTable | null): EditorCanvasTable | null => {
+  if (!currentTable) {
+    return null
+  }
+
+  return {
+    rows: currentTable.rows,
+    columns: currentTable.columns,
+    cells: currentTable.cells.map((cell) => ({
+      id: cell.id,
+      row: cell.row,
+      col: cell.col,
+      fields: cell.fields.map((field) => cloneFieldSnapshot(field)),
+      rowSpan: cell.rowSpan,
+      colSpan: cell.colSpan,
+      merged: cell.merged,
+      mergeParentId: cell.mergeParentId,
+    })),
+    columnWidths: [...currentTable.columnWidths],
+    rowHeights: [...currentTable.rowHeights],
+  }
+}
+
+const createHistorySnapshot = (): EditorHistorySnapshot => {
+  return {
+    table: cloneTableSnapshot(table.value),
+  }
+}
+
+const restoreHistorySnapshot = (snapshot: EditorHistorySnapshot) => {
+  table.value = cloneTableSnapshot(snapshot.table)
+  resetEditorSelection()
+  dirty.value = true
+}
+
 /**
  * 替换单元格
+ * @param currentTable 当前表格
  * @param cellId 单元格id
  * @param updater 单元格更新器
  */
 const replaceCell = (
+  currentTable: EditorCanvasTable | null,
   cellId: string,
-  updater: (cell: NonNullable<typeof activeCell.value>) => NonNullable<typeof activeCell.value>,
+  updater: (cell: EditorCanvasTable['cells'][number]) => EditorCanvasTable['cells'][number],
 ) => {
-  if (!table.value) {
-    return
+  if (!currentTable) {
+    return currentTable
   }
 
-  table.value = {
-    ...table.value,
-    cells: table.value.cells.map((cell) => {
+  return {
+    ...currentTable,
+    cells: currentTable.cells.map((cell) => {
       if (cell.id !== cellId) {
         return cell
       }
@@ -208,6 +278,23 @@ const replaceCell = (
       return updater(cell)
     }),
   }
+}
+
+const commitTableChange = (
+  updater: (currentTable: EditorCanvasTable | null) => EditorCanvasTable | null,
+) => {
+  const nextTable = updater(table.value)
+
+  if (nextTable === table.value) {
+    return false
+  }
+
+  undoHistory.value = [...undoHistory.value, createHistorySnapshot()]
+  redoHistory.value = []
+  table.value = nextTable
+  dirty.value = true
+
+  return true
 }
 
 /**
@@ -255,7 +342,6 @@ const resetEditorSelection = () => {
 }
 
 const openTableDialog = (mode: 'create' | 'rebuild') => {
-  pendingTableMode.value = mode
   tableDialogRef.value?.open(mode)
 }
 
@@ -290,7 +376,9 @@ const handlePublish = async () => {
 
 const handleMoreAction = (action: EditorHeaderActionKey) => {
   if (action === 'shortcut') {
-    ElMessage.info('已支持快捷键：Ctrl/Cmd+C 复制单元格组件，Ctrl/Cmd+V 粘贴单元格组件')
+    ElMessage.info(
+      '已支持快捷键：Ctrl/Cmd+C 复制单元格组件，Ctrl/Cmd+V 粘贴单元格组件，Ctrl/Cmd+Z 撤销，Ctrl/Cmd+Y 恢复',
+    )
     return
   }
 
@@ -303,15 +391,15 @@ const handleMoreAction = (action: EditorHeaderActionKey) => {
  * @param payload 表格创建表单
  */
 const handleCreateTable = (payload: EditorCreateTableForm) => {
-  table.value = createEditorTable(
-    payload.rows,
-    payload.columns,
-    EDITOR_TABLE_DEFAULT_COLUMN_WIDTH,
-    EDITOR_TABLE_DEFAULT_ROW_HEIGHT,
+  commitTableChange(() =>
+    createEditorTable(
+      payload.rows,
+      payload.columns,
+      EDITOR_TABLE_DEFAULT_COLUMN_WIDTH,
+      EDITOR_TABLE_DEFAULT_ROW_HEIGHT,
+    ),
   )
   resetEditorSelection()
-
-  dirty.value = pendingTableMode.value === 'rebuild' ? true : dirty.value
 }
 
 /**
@@ -327,14 +415,19 @@ const appendFieldToCell = (cellId: string, type: EditorComponentType) => {
 
   const nextField = createFieldInstance(type)
 
-  replaceCell(cellId, (cell) => ({
-    ...cell,
-    fields: [...cell.fields, nextField],
-  }))
+  const changed = commitTableChange((currentTable) =>
+    replaceCell(currentTable, cellId, (cell) => ({
+      ...cell,
+      fields: [...cell.fields, nextField],
+    })),
+  )
+
+  if (!changed) {
+    return
+  }
 
   collapseSelectionToCell(cellId)
   activeFieldId.value = nextField.uuid
-  dirty.value = true
 }
 
 /**
@@ -397,14 +490,19 @@ const handleRemoveField = ({ cellId, fieldId }: EditorRemoveFieldPayload) => {
 
   const nextFields = targetCell.fields.filter((field) => field.uuid !== fieldId)
 
-  replaceCell(cellId, (cell) => ({
-    ...cell,
-    fields: nextFields,
-  }))
+  const changed = commitTableChange((currentTable) =>
+    replaceCell(currentTable, cellId, (cell) => ({
+      ...cell,
+      fields: nextFields,
+    })),
+  )
+
+  if (!changed) {
+    return
+  }
 
   collapseSelectionToCell(cellId)
   activeFieldId.value = nextFields.at(-1)?.uuid ?? ''
-  dirty.value = true
 }
 
 /**
@@ -416,21 +514,21 @@ const handleUpdateField = (patch: EditorFieldPatch) => {
     return
   }
 
-  replaceCell(activeCell.value.id, (cell) => ({
-    ...cell,
-    fields: cell.fields.map((field) => {
-      if (field.uuid !== activeField.value?.uuid) {
-        return field
-      }
+  commitTableChange((currentTable) =>
+    replaceCell(currentTable, activeCell.value!.id, (cell) => ({
+      ...cell,
+      fields: cell.fields.map((field) => {
+        if (field.uuid !== activeField.value?.uuid) {
+          return field
+        }
 
-      return {
-        ...field,
-        ...patch,
-      }
-    }),
-  }))
-
-  dirty.value = true
+        return {
+          ...field,
+          ...patch,
+        }
+      }),
+    })),
+  )
 }
 
 /**
@@ -571,20 +669,30 @@ const handlePasteToActiveCell = () => {
 
   const targetCellIdSet = new Set(targetCellIds)
 
-  table.value = {
-    ...table.value,
-    cells: table.value.cells.map((cell) => {
-      if (!targetCellIdSet.has(cell.id)) {
-        return cell
-      }
+  const changed = commitTableChange((currentTable) => {
+    if (!currentTable) {
+      return currentTable
+    }
 
-      return {
-        ...cell,
-        fields: cloneFieldInstances(cellClipboard.value?.fields ?? [], {
-          regenerateUuid: true,
-        }),
-      }
-    }),
+    return {
+      ...currentTable,
+      cells: currentTable.cells.map((cell) => {
+        if (!targetCellIdSet.has(cell.id)) {
+          return cell
+        }
+
+        return {
+          ...cell,
+          fields: cloneFieldInstances(cellClipboard.value?.fields ?? [], {
+            regenerateUuid: true,
+          }),
+        }
+      }),
+    }
+  })
+
+  if (!changed) {
+    return false
   }
 
   const focusCellId = targetCellIds.includes(activeCellId.value)
@@ -603,7 +711,33 @@ const handlePasteToActiveCell = () => {
     syncActiveFieldByCell(focusCellId)
   }
 
-  dirty.value = true
+  return true
+}
+
+const handleUndo = () => {
+  const snapshot = undoHistory.value.at(-1)
+
+  if (!snapshot) {
+    return false
+  }
+
+  redoHistory.value = [...redoHistory.value, createHistorySnapshot()]
+  undoHistory.value = undoHistory.value.slice(0, -1)
+  restoreHistorySnapshot(snapshot)
+
+  return true
+}
+
+const handleRedo = () => {
+  const snapshot = redoHistory.value.at(-1)
+
+  if (!snapshot) {
+    return false
+  }
+
+  undoHistory.value = [...undoHistory.value, createHistorySnapshot()]
+  redoHistory.value = redoHistory.value.slice(0, -1)
+  restoreHistorySnapshot(snapshot)
 
   return true
 }
@@ -641,7 +775,23 @@ const handleWindowKeydown = (event: KeyboardEvent) => {
     return
   }
 
-  if (key === 'v' && handlePasteToActiveCell()) {
+  if (key === 'v') {
+    if (handlePasteToActiveCell()) {
+      event.preventDefault()
+    }
+
+    return
+  }
+
+  if (key === 'z') {
+    if (handleUndo()) {
+      event.preventDefault()
+    }
+
+    return
+  }
+
+  if (key === 'y' && handleRedo()) {
     event.preventDefault()
   }
 }
@@ -649,49 +799,65 @@ const handleWindowKeydown = (event: KeyboardEvent) => {
 useEventListener(window, 'keydown', handleWindowKeydown)
 
 const handleResizeColumn = ({ index, width }: EditorResizeColumnPayload) => {
-  if (!table.value) {
-    return
-  }
+  commitTableChange((currentTable) => {
+    if (!currentTable) {
+      return currentTable
+    }
 
-  const nextColumnWidths = [...table.value.columnWidths]
-  const currentWidth = nextColumnWidths[index]
-  const nextWidth = nextColumnWidths[index + 1]
+    const nextColumnWidths = [...currentTable.columnWidths]
+    const currentWidth = nextColumnWidths[index]
+    const nextWidth = nextColumnWidths[index + 1]
 
-  if (currentWidth === undefined) {
-    return
-  }
+    if (currentWidth === undefined) {
+      return currentTable
+    }
 
-  if (nextWidth === undefined) {
-    nextColumnWidths[index] = width
-  } else {
-    const delta = width - currentWidth
-    const shrinkableDelta = Math.min(delta, nextWidth - EDITOR_TABLE_MIN_COLUMN_WIDTH)
-    const growableDelta = Math.max(delta, -(currentWidth - EDITOR_TABLE_MIN_COLUMN_WIDTH))
-    const appliedDelta = delta >= 0 ? Math.max(0, shrinkableDelta) : Math.min(0, growableDelta)
+    if (nextWidth === undefined) {
+      if (currentWidth === width) {
+        return currentTable
+      }
 
-    nextColumnWidths[index] = currentWidth + appliedDelta
-    nextColumnWidths[index + 1] = nextWidth - appliedDelta
-  }
+      nextColumnWidths[index] = width
+    } else {
+      const delta = width - currentWidth
+      const shrinkableDelta = Math.min(delta, nextWidth - EDITOR_TABLE_MIN_COLUMN_WIDTH)
+      const growableDelta = Math.max(delta, -(currentWidth - EDITOR_TABLE_MIN_COLUMN_WIDTH))
+      const appliedDelta = delta >= 0 ? Math.max(0, shrinkableDelta) : Math.min(0, growableDelta)
 
-  table.value = {
-    ...table.value,
-    columnWidths: nextColumnWidths,
-  }
-  dirty.value = true
+      if (appliedDelta === 0) {
+        return currentTable
+      }
+
+      nextColumnWidths[index] = currentWidth + appliedDelta
+      nextColumnWidths[index + 1] = nextWidth - appliedDelta
+    }
+
+    return {
+      ...currentTable,
+      columnWidths: nextColumnWidths,
+    }
+  })
 }
 
 const handleResizeRow = ({ index, height }: EditorResizeRowPayload) => {
-  if (!table.value) {
-    return
-  }
+  commitTableChange((currentTable) => {
+    if (!currentTable) {
+      return currentTable
+    }
 
-  const nextRowHeights = [...table.value.rowHeights]
-  nextRowHeights[index] = height
-  table.value = {
-    ...table.value,
-    rowHeights: nextRowHeights,
-  }
-  dirty.value = true
+    const nextRowHeights = [...currentTable.rowHeights]
+
+    if (nextRowHeights[index] === height) {
+      return currentTable
+    }
+
+    nextRowHeights[index] = height
+
+    return {
+      ...currentTable,
+      rowHeights: nextRowHeights,
+    }
+  })
 }
 
 /**
@@ -801,52 +967,91 @@ const handleContextCommand = (command: EditorContextMenuCommand) => {
         return
       }
 
-      table.value = mergeSelectedCells(table.value, selectedCellIds.value)
+      const changed = commitTableChange((currentTable) => {
+        if (!currentTable) {
+          return currentTable
+        }
+
+        return mergeSelectedCells(currentTable, selectedCellIds.value)
+      })
+
+      if (!changed) {
+        return
+      }
+
       collapseSelectionToCell(validation.topLeftCell.id)
-      dirty.value = true
       return
     }
 
     // 拆分单元格
-    case 'split-cell':
+    case 'split-cell': {
       if (!table.value || !activeCell.value) {
         return
       }
 
-      table.value = splitMergedCell(table.value, activeCell.value.id)
+      const changed = commitTableChange((currentTable) => {
+        if (!currentTable) {
+          return currentTable
+        }
+
+        return splitMergedCell(currentTable, activeCell.value!.id)
+      })
+
+      if (!changed) {
+        return
+      }
+
       collapseSelectionToCell(activeCell.value.id)
-      dirty.value = true
       return
+    }
 
     // 在下方插入整行
-    case 'insert-row-below':
+    case 'insert-row-below': {
       if (!table.value || !activeCell.value) {
         return
       }
 
-      table.value = insertRowBelow(
-        table.value,
-        activeCell.value.id,
-        EDITOR_TABLE_DEFAULT_ROW_HEIGHT,
-      )
+      const changed = commitTableChange((currentTable) => {
+        if (!currentTable) {
+          return currentTable
+        }
+
+        return insertRowBelow(currentTable, activeCell.value!.id, EDITOR_TABLE_DEFAULT_ROW_HEIGHT)
+      })
+
+      if (!changed) {
+        return
+      }
+
       collapseSelectionToCell(activeCell.value.id)
-      dirty.value = true
       return
+    }
 
     // 在右侧插入整列
-    case 'insert-column-right':
+    case 'insert-column-right': {
       if (!table.value || !activeCell.value) {
         return
       }
 
-      table.value = insertColumnRight(
-        table.value,
-        activeCell.value.id,
-        EDITOR_TABLE_DEFAULT_COLUMN_WIDTH,
-      )
+      const changed = commitTableChange((currentTable) => {
+        if (!currentTable) {
+          return currentTable
+        }
+
+        return insertColumnRight(
+          currentTable,
+          activeCell.value!.id,
+          EDITOR_TABLE_DEFAULT_COLUMN_WIDTH,
+        )
+      })
+
+      if (!changed) {
+        return
+      }
+
       collapseSelectionToCell(activeCell.value.id)
-      dirty.value = true
       return
+    }
 
     // 删除整行
     case 'delete-row': {
@@ -854,19 +1059,19 @@ const handleContextCommand = (command: EditorContextMenuCommand) => {
         return
       }
 
-      const nextTable = deleteRow(table.value, activeCell.value.id)
+      const changed = commitTableChange((currentTable) => {
+        if (!currentTable) {
+          return currentTable
+        }
 
-      table.value = nextTable
+        return deleteRow(currentTable, activeCell.value!.id)
+      })
 
-      if (!nextTable) {
-        // 如果表格为空，重置选区
-        resetEditorSelection()
-        dirty.value = true
+      if (!changed) {
         return
       }
 
       resetEditorSelection()
-      dirty.value = true
       return
     }
 
@@ -876,19 +1081,19 @@ const handleContextCommand = (command: EditorContextMenuCommand) => {
         return
       }
 
-      const nextTable = deleteColumn(table.value, activeCell.value.id)
+      const changed = commitTableChange((currentTable) => {
+        if (!currentTable) {
+          return currentTable
+        }
 
-      table.value = nextTable
+        return deleteColumn(currentTable, activeCell.value!.id)
+      })
 
-      if (!nextTable) {
-        // 如果表格为空，重置选区
-        resetEditorSelection()
-        dirty.value = true
+      if (!changed) {
         return
       }
 
       resetEditorSelection()
-      dirty.value = true
       return
     }
   }
@@ -900,14 +1105,18 @@ const handleContextCommand = (command: EditorContextMenuCommand) => {
     <EditorHeader
       :dirty="dirty"
       :publish-loading="publishLoading"
+      :redo-disabled="!canRedo"
       :save-loading="saveLoading"
+      :undo-disabled="!canUndo"
       status-text="草稿"
       title="Formly 表单编辑器"
       @back="handleBack"
       @more-action="handleMoreAction"
       @preview="handlePreview"
       @publish="handlePublish"
+      @redo="handleRedo"
       @save="handleSave"
+      @undo="handleUndo"
     />
 
     <main class="flex min-h-0 flex-1 gap-4 overflow-hidden p-4 lg:p-5">
