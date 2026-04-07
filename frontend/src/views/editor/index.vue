@@ -241,12 +241,20 @@ const cloneTableSnapshot = (currentTable: EditorCanvasTable | null): EditorCanva
   }
 }
 
+/**
+ * 创建历史快照
+ * @returns 历史快照
+ */
 const createHistorySnapshot = (): EditorHistorySnapshot => {
   return {
     table: cloneTableSnapshot(table.value),
   }
 }
 
+/**
+ * 恢复历史快照
+ * @param snapshot 历史快照
+ */
 const restoreHistorySnapshot = (snapshot: EditorHistorySnapshot) => {
   table.value = cloneTableSnapshot(snapshot.table)
   resetEditorSelection()
@@ -280,6 +288,11 @@ const replaceCell = (
   }
 }
 
+/**
+ * 提交表格变更
+ * @param updater 表格更新器
+ * @returns 是否有变更
+ */
 const commitTableChange = (
   updater: (currentTable: EditorCanvasTable | null) => EditorCanvasTable | null,
 ) => {
@@ -714,6 +727,10 @@ const handlePasteToActiveCell = () => {
   return true
 }
 
+/**
+ * 处理撤销
+ * @returns 是否成功
+ */
 const handleUndo = () => {
   const snapshot = undoHistory.value.at(-1)
 
@@ -728,6 +745,10 @@ const handleUndo = () => {
   return true
 }
 
+/**
+ * 处理恢复
+ * @returns 是否成功
+ */
 const handleRedo = () => {
   const snapshot = redoHistory.value.at(-1)
 
