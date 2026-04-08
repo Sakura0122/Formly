@@ -224,13 +224,16 @@ const handleConfigSelectField = (fieldId: string) => {
 
       <div class="min-h-0 w-[320px] shrink-0">
         <EditorConfigPanel
+          @add-option="editorStore.addActiveFieldOption"
           :active-cell="activeCell"
           :active-field="activeField"
           :cell-fields="cellFields"
           @change-field-type="editorStore.changeFieldType"
           @remove-field="editorStore.removeActiveField"
+          @remove-option="editorStore.removeActiveFieldOption"
           @select-field="handleConfigSelectField"
           @update-field="editorStore.updateField"
+          @update-option="editorStore.updateActiveFieldOption"
         />
       </div>
     </main>

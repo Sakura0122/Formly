@@ -1,7 +1,7 @@
 import { ElMessage } from 'element-plus'
 
 import { defineStore } from 'pinia'
-import { computed, ref, toRaw } from 'vue'
+import { computed, ref, shallowRef } from 'vue'
 
 import {
   EDITOR_DEFAULT_OPTIONS,
@@ -21,6 +21,8 @@ import type {
   EditorContextMenuItem,
   EditorCreateTableForm,
   EditorFieldInstance,
+  EditorFieldOptionChangePayload,
+  EditorFieldOptionRemovePayload,
   EditorFieldOption,
   EditorFieldPatch,
   EditorHistorySnapshot,
@@ -51,7 +53,7 @@ import {
  */
 export const useEditorStore = defineStore('editor', () => {
   /** 当前整张表的数据 */
-  const table = ref<EditorCanvasTable | null>(null)
+  const table = shallowRef<EditorCanvasTable | null>(null)
   /** 当前激活的单元格 id */
   const activeCellId = ref('')
   /** 当前激活的组件 id */
@@ -61,13 +63,13 @@ export const useEditorStore = defineStore('editor', () => {
   /** 框选时的锚点单元格 */
   const selectionAnchorCellId = ref('')
   /** 页面内剪贴板，仅保存组件配置 */
-  const cellClipboard = ref<EditorCellClipboard | null>(null)
+  const cellClipboard = shallowRef<EditorCellClipboard | null>(null)
   /** 是否存在未保存改动 */
   const dirty = ref(false)
   /** 撤销历史 */
-  const undoHistory = ref<EditorHistorySnapshot[]>([])
+  const undoHistory = shallowRef<EditorHistorySnapshot[]>([])
   /** 重做历史 */
-  const redoHistory = ref<EditorHistorySnapshot[]>([])
+  const redoHistory = shallowRef<EditorHistorySnapshot[]>([])
 
   /** 当前激活的单元格 */
   const activeCell = computed(() => {
@@ -293,18 +295,15 @@ export const useEditorStore = defineStore('editor', () => {
    * 删除组件
    */
   const removeField = ({ cellId, fieldId }: EditorRemoveFieldPayload) => {
-    const targetCell = getCellById(table.value, cellId)
-
-    if (!targetCell) {
-      return
-    }
-
-    const nextFields = targetCell.fields.filter((field) => field.uuid !== fieldId)
     const changed = commitTableChange((currentTable) =>
-      replaceCell(currentTable, cellId, (cell) => ({
-        ...cell,
-        fields: nextFields,
-      })),
+      replaceCell(currentTable, cellId, (cell) => {
+        const nextFields = cell.fields.filter((field) => field.uuid !== fieldId)
+
+        return {
+          ...cell,
+          fields: nextFields,
+        }
+      }),
     )
 
     if (!changed) {
@@ -312,7 +311,6 @@ export const useEditorStore = defineStore('editor', () => {
     }
 
     collapseSelectionToCell(cellId)
-    activeFieldId.value = nextFields.at(-1)?.uuid ?? ''
   }
 
   /**
@@ -337,6 +335,101 @@ export const useEditorStore = defineStore('editor', () => {
           return {
             ...field,
             ...patch,
+          }
+        }),
+      })),
+    )
+  }
+
+  /**
+   * 仅更新当前激活字段的某一项选项内容，组件层只传编辑意图。
+   */
+  const updateActiveFieldOption = ({ index, key, value }: EditorFieldOptionChangePayload) => {
+    const currentActiveCell = activeCell.value
+    const currentActiveField = activeField.value
+
+    if (!currentActiveCell || !currentActiveField) {
+      return
+    }
+
+    commitTableChange((currentTable) =>
+      replaceCell(currentTable, currentActiveCell.id, (cell) => ({
+        ...cell,
+        fields: cell.fields.map((field) => {
+          if (field.uuid !== currentActiveField.uuid || !field.options[index]) {
+            return field
+          }
+
+          return {
+            ...field,
+            options: field.options.map((option, optionIndex) => {
+              if (optionIndex !== index) {
+                return option
+              }
+
+              return {
+                ...option,
+                [key]: value,
+              }
+            }),
+          }
+        }),
+      })),
+    )
+  }
+
+  /**
+   * 为当前激活字段追加一个新选项，默认值在 store 内生成。
+   */
+  const addActiveFieldOption = () => {
+    const currentActiveCell = activeCell.value
+    const currentActiveField = activeField.value
+
+    if (!currentActiveCell || !currentActiveField) {
+      return
+    }
+
+    commitTableChange((currentTable) =>
+      replaceCell(currentTable, currentActiveCell.id, (cell) => ({
+        ...cell,
+        fields: cell.fields.map((field) => {
+          if (field.uuid !== currentActiveField.uuid) {
+            return field
+          }
+
+          return {
+            ...field,
+            options: [...field.options, createFieldOptionDraft(field.options.length)],
+          }
+        }),
+      })),
+    )
+  }
+
+  /**
+   * 删除当前激活字段的选项；最后一项会回退为默认草稿，避免空选项态。
+   */
+  const removeActiveFieldOption = ({ index }: EditorFieldOptionRemovePayload) => {
+    const currentActiveCell = activeCell.value
+    const currentActiveField = activeField.value
+
+    if (!currentActiveCell || !currentActiveField) {
+      return
+    }
+
+    commitTableChange((currentTable) =>
+      replaceCell(currentTable, currentActiveCell.id, (cell) => ({
+        ...cell,
+        fields: cell.fields.map((field) => {
+          if (field.uuid !== currentActiveField.uuid) {
+            return field
+          }
+
+          const nextOptions = field.options.filter((_, optionIndex) => optionIndex !== index)
+
+          return {
+            ...field,
+            options: nextOptions.length ? nextOptions : [createFieldOptionDraft(0)],
           }
         }),
       })),
@@ -872,6 +965,7 @@ export const useEditorStore = defineStore('editor', () => {
     activeCellId,
     activeField,
     activeFieldId,
+    addActiveFieldOption,
     applySelection,
     canRedo,
     canUndo,
@@ -891,6 +985,7 @@ export const useEditorStore = defineStore('editor', () => {
     redo,
     removeActiveField,
     removeField,
+    removeActiveFieldOption,
     resetSelection,
     resizeColumn,
     resizeRow,
@@ -901,6 +996,7 @@ export const useEditorStore = defineStore('editor', () => {
     syncActiveFieldByCell,
     table,
     undo,
+    updateActiveFieldOption,
     updateField,
   }
 })
@@ -916,7 +1012,14 @@ interface EditorFieldDefaults {
 }
 
 const cloneEditorValue = <T>(value: T): T => {
-  return structuredClone(toRaw(value))
+  return structuredClone(value)
+}
+
+const createFieldOptionDraft = (index: number): EditorFieldOption => {
+  return {
+    label: `选项${index + 1}`,
+    value: `option_${index + 1}`,
+  }
 }
 
 /**
