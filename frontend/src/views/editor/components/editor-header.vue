@@ -112,11 +112,7 @@ const handleMoreAction = (action: string | number | object) => {
         </el-button>
         <template #dropdown>
           <el-dropdown-menu>
-            <el-dropdown-item
-              v-for="action in EDITOR_HEADER_ACTION_OPTIONS"
-              :key="action.key"
-              :command="action.key"
-            >
+            <el-dropdown-item v-for="action in EDITOR_HEADER_ACTION_OPTIONS" :key="action.key" :command="action.key">
               <div class="flex items-center gap-2">
                 <Icon class="text-base text-slate-500" :icon="action.icon" />
                 <span>{{ action.label }}</span>

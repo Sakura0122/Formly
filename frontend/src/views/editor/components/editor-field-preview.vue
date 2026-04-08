@@ -68,7 +68,6 @@ const justifyClass = computed(() => {
       return 'justify-center'
   }
 })
-
 </script>
 
 <template>
@@ -115,10 +114,7 @@ const justifyClass = computed(() => {
           class="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full border"
           :class="option.value === previewValue ? 'border-sky-500' : 'border-slate-300'"
         >
-          <span
-            v-if="option.value === previewValue"
-            class="h-1.5 w-1.5 rounded-full bg-sky-500"
-          />
+          <span v-if="option.value === previewValue" class="h-1.5 w-1.5 rounded-full bg-sky-500" />
         </span>
         <span class="min-w-0 truncate">{{ option.label }}</span>
       </div>
@@ -152,12 +148,7 @@ const justifyClass = computed(() => {
     style="width: 100%"
     size="small"
   >
-    <el-option
-      v-for="option in previewOptions"
-      :key="option.value"
-      :label="option.label"
-      :value="option.value"
-    />
+    <el-option v-for="option in previewOptions" :key="option.value" :label="option.label" :value="option.value" />
   </el-select>
 
   <div v-else-if="field.type === 'date'" class="flex h-6 w-full min-w-0 items-center px-2">
