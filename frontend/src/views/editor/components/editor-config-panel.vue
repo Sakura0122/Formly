@@ -6,6 +6,8 @@ import { EDITOR_PALETTE_ITEMS } from '@/constants/editor'
 import type {
   EditorCanvasCell,
   EditorComponentType,
+  EditorFieldOptionChangePayload,
+  EditorFieldOptionRemovePayload,
   EditorHorizontalAlign,
   EditorFieldOption,
   EditorFieldPatch,
@@ -24,6 +26,12 @@ const props = defineProps<{
 const emit = defineEmits<{
   /** 更新组件 */
   (e: 'update-field', patch: EditorFieldPatch): void
+  /** 更新选项 */
+  (e: 'update-option', payload: EditorFieldOptionChangePayload): void
+  /** 添加选项 */
+  (e: 'add-option'): void
+  /** 删除选项 */
+  (e: 'remove-option', payload: EditorFieldOptionRemovePayload): void
   /** 改变组件类型 */
   (e: 'change-field-type', type: EditorComponentType): void
   /** 选中组件 */
@@ -148,19 +156,10 @@ const editableOptions = computed(() => {
  * @param value 选项值
  */
 const updateOption = (index: number, key: keyof EditorFieldOption, value: string) => {
-  const nextOptions = editableOptions.value.map((option, optionIndex) => {
-    if (optionIndex !== index) {
-      return option
-    }
-
-    return {
-      ...option,
-      [key]: value,
-    }
-  })
-
-  emit('update-field', {
-    options: nextOptions,
+  emit('update-option', {
+    index,
+    key,
+    value,
   })
 }
 
@@ -168,11 +167,7 @@ const updateOption = (index: number, key: keyof EditorFieldOption, value: string
  * 添加选项
  */
 const addOption = () => {
-  const nextOptions = [...editableOptions.value, createOptionDraft(editableOptions.value.length)]
-
-  emit('update-field', {
-    options: nextOptions,
-  })
+  emit('add-option')
 }
 
 /**
@@ -180,10 +175,8 @@ const addOption = () => {
  * @param index 选项索引
  */
 const removeOption = (index: number) => {
-  const nextOptions = editableOptions.value.filter((_, optionIndex) => optionIndex !== index)
-
-  emit('update-field', {
-    options: nextOptions.length ? nextOptions : [createOptionDraft(0)],
+  emit('remove-option', {
+    index,
   })
 }
 </script>

@@ -40,6 +40,16 @@ export interface EditorFieldOption {
   value: string
 }
 
+export interface EditorFieldOptionChangePayload {
+  index: number
+  key: keyof EditorFieldOption
+  value: string
+}
+
+export interface EditorFieldOptionRemovePayload {
+  index: number
+}
+
 export type EditorHorizontalAlign = 'left' | 'center' | 'right'
 
 export interface EditorFieldInstance {
