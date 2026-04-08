@@ -9,7 +9,7 @@ import { EDITOR_HEADER_ACTION_OPTIONS } from '@/constants/editor'
 import { useEditorStore } from '@/stores/editor'
 import type {
   EditorCanvasContextMenuPayload,
-  EditorContextMenuCommand,
+  EditorContextMenuActionPayload,
   EditorContextMenuItem,
   EditorHeaderActionKey,
 } from '@/types/editor'
@@ -167,13 +167,13 @@ const handleCanvasContextMenu = (payload: EditorCanvasContextMenuPayload) => {
   )
 }
 
-const handleContextCommand = (command: EditorContextMenuCommand) => {
-  if (command === 'create' || command === 'rebuild') {
-    openTableDialog(command)
+const handleContextCommand = (payload: EditorContextMenuActionPayload) => {
+  if (payload.command === 'create' || payload.command === 'rebuild') {
+    openTableDialog(payload.command)
     return
   }
 
-  editorStore.executeContextCommand(command)
+  editorStore.executeContextCommand(payload)
 }
 
 const handleConfigSelectField = (fieldId: string) => {

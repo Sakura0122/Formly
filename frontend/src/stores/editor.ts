@@ -7,6 +7,7 @@ import {
   EDITOR_DEFAULT_OPTIONS,
   EDITOR_TABLE_DEFAULT_COLUMN_WIDTH,
   EDITOR_TABLE_DEFAULT_ROW_HEIGHT,
+  EDITOR_TABLE_LIMITS,
   EDITOR_TABLE_MIN_COLUMN_WIDTH,
 } from '@/constants/editor'
 import type {
@@ -15,6 +16,7 @@ import type {
   EditorCanvasTable,
   EditorCellClipboard,
   EditorComponentType,
+  EditorContextMenuActionPayload,
   EditorContextMenuCommand,
   EditorContextMenuItem,
   EditorCreateTableForm,
@@ -35,7 +37,9 @@ import {
   deleteColumn,
   deleteRow,
   getCellById,
+  insertColumnLeft,
   insertColumnRight,
+  insertRowAbove,
   insertRowBelow,
   mergeSelectedCells,
   splitMergedCell,
@@ -587,6 +591,41 @@ export const useEditorStore = defineStore('editor', () => {
   }
 
   /**
+   * 限制插入数量在 [1, max] 范围内。
+   */
+  const clampInsertCount = (count: number, max: number) => {
+    if (max <= 0) {
+      return 0
+    }
+
+    return Math.min(max, Math.max(1, Math.floor(count)))
+  }
+
+  /**
+   * 构建带数量输入的菜单项。
+   */
+  const buildInsertMenuItem = (
+    command: EditorContextMenuCommand,
+    label: string,
+    icon: string,
+    max: number,
+    unit: '行' | '列',
+  ): EditorContextMenuItem => {
+    return {
+      command,
+      label,
+      icon,
+      disabled: max <= 0,
+      countInput: {
+        min: 1,
+        max,
+        unit,
+        defaultValue: 1,
+      },
+    }
+  }
+
+  /**
    * 右键菜单项由当前表格结构和选区状态共同决定。
    */
   const getContextMenuItems = (): EditorContextMenuItem[] => {
@@ -601,6 +640,8 @@ export const useEditorStore = defineStore('editor', () => {
     }
 
     const items: EditorContextMenuItem[] = []
+    const rowInsertLimit = Math.max(EDITOR_TABLE_LIMITS.maxRows - table.value.rows, 0)
+    const columnInsertLimit = Math.max(EDITOR_TABLE_LIMITS.maxColumns - table.value.columns, 0)
 
     if (mergeValidation.value.canMerge) {
       items.push({
@@ -620,16 +661,16 @@ export const useEditorStore = defineStore('editor', () => {
 
     if (activeCell.value) {
       items.push(
-        {
-          command: 'insert-row-below',
-          label: '下方插入整行',
-          icon: 'mdi:table-row-plus-after',
-        },
-        {
-          command: 'insert-column-right',
-          label: '右侧插入整列',
-          icon: 'mdi:table-column-plus-after',
-        },
+        buildInsertMenuItem('insert-row-above', '上方插入', 'mdi:table-row-plus-before', rowInsertLimit, '行'),
+        buildInsertMenuItem('insert-row-below', '下方插入', 'mdi:table-row-plus-after', rowInsertLimit, '行'),
+        buildInsertMenuItem('insert-column-left', '左侧插入', 'mdi:table-column-plus-before', columnInsertLimit, '列'),
+        buildInsertMenuItem(
+          'insert-column-right',
+          '右侧插入',
+          'mdi:table-column-plus-after',
+          columnInsertLimit,
+          '列',
+        ),
         {
           command: 'delete-row',
           label: '删除整行',
@@ -655,7 +696,7 @@ export const useEditorStore = defineStore('editor', () => {
   /**
    * 集中处理右键菜单命令。
    */
-  const executeContextCommand = (command: EditorContextMenuCommand) => {
+  const executeContextCommand = ({ command, count }: EditorContextMenuActionPayload) => {
     switch (command) {
       case 'create':
       case 'rebuild':
@@ -713,10 +754,18 @@ export const useEditorStore = defineStore('editor', () => {
         return
       }
 
+      case 'insert-row-above':
       case 'insert-row-below': {
         const currentActiveCell = activeCell.value
 
         if (!table.value || !currentActiveCell) {
+          return
+        }
+
+        const safeCount = clampInsertCount(count, EDITOR_TABLE_LIMITS.maxRows - table.value.rows)
+
+        if (!safeCount) {
+          ElMessage.warning('已达到最大行数')
           return
         }
 
@@ -725,7 +774,9 @@ export const useEditorStore = defineStore('editor', () => {
             return currentTable
           }
 
-          return insertRowBelow(currentTable, currentActiveCell.id, EDITOR_TABLE_DEFAULT_ROW_HEIGHT)
+          return command === 'insert-row-above'
+            ? insertRowAbove(currentTable, currentActiveCell.id, EDITOR_TABLE_DEFAULT_ROW_HEIGHT, safeCount)
+            : insertRowBelow(currentTable, currentActiveCell.id, EDITOR_TABLE_DEFAULT_ROW_HEIGHT, safeCount)
         })
 
         if (!changed) {
@@ -736,10 +787,18 @@ export const useEditorStore = defineStore('editor', () => {
         return
       }
 
+      case 'insert-column-left':
       case 'insert-column-right': {
         const currentActiveCell = activeCell.value
 
         if (!table.value || !currentActiveCell) {
+          return
+        }
+
+        const safeCount = clampInsertCount(count, EDITOR_TABLE_LIMITS.maxColumns - table.value.columns)
+
+        if (!safeCount) {
+          ElMessage.warning('已达到最大列数')
           return
         }
 
@@ -748,7 +807,9 @@ export const useEditorStore = defineStore('editor', () => {
             return currentTable
           }
 
-          return insertColumnRight(currentTable, currentActiveCell.id, EDITOR_TABLE_DEFAULT_COLUMN_WIDTH)
+          return command === 'insert-column-left'
+            ? insertColumnLeft(currentTable, currentActiveCell.id, EDITOR_TABLE_DEFAULT_COLUMN_WIDTH, safeCount)
+            : insertColumnRight(currentTable, currentActiveCell.id, EDITOR_TABLE_DEFAULT_COLUMN_WIDTH, safeCount)
         })
 
         if (!changed) {

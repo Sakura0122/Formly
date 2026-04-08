@@ -132,14 +132,31 @@ export type EditorContextMenuCommand =
   | 'rebuild'
   | 'merge-cells'
   | 'split-cell'
+  | 'insert-row-above'
   | 'insert-row-below'
+  | 'insert-column-left'
   | 'insert-column-right'
   | 'delete-row'
   | 'delete-column'
+
+export type EditorContextMenuCountUnit = '行' | '列'
+
+export interface EditorContextMenuCountInput {
+  min: number
+  max: number
+  unit: EditorContextMenuCountUnit
+  defaultValue: number
+}
 
 export interface EditorContextMenuItem {
   command: EditorContextMenuCommand
   label: string
   icon: string
   disabled?: boolean
+  countInput?: EditorContextMenuCountInput
+}
+
+export interface EditorContextMenuActionPayload {
+  command: EditorContextMenuCommand
+  count: number
 }
