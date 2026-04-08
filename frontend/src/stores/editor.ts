@@ -1,0 +1,961 @@
+import { ElMessage } from 'element-plus'
+
+import { defineStore } from 'pinia'
+import { computed, ref, toRaw } from 'vue'
+
+import {
+  EDITOR_DEFAULT_IMAGE_URL,
+  EDITOR_DEFAULT_OPTIONS,
+  EDITOR_TABLE_DEFAULT_COLUMN_WIDTH,
+  EDITOR_TABLE_DEFAULT_ROW_HEIGHT,
+  EDITOR_TABLE_MIN_COLUMN_WIDTH,
+} from '@/constants/editor'
+import type {
+  EditorCanvasDropPayload,
+  EditorCanvasSelectionPayload,
+  EditorCanvasTable,
+  EditorCellClipboard,
+  EditorComponentType,
+  EditorContextMenuCommand,
+  EditorContextMenuItem,
+  EditorCreateTableForm,
+  EditorFieldInstance,
+  EditorFieldOption,
+  EditorFieldPatch,
+  EditorHistorySnapshot,
+  EditorHorizontalAlign,
+  EditorPaletteItem,
+  EditorRemoveFieldPayload,
+  EditorResizeColumnPayload,
+  EditorResizeRowPayload,
+  EditorSelectFieldPayload,
+} from '@/types/editor'
+import {
+  createEditorTable,
+  createUUID,
+  deleteColumn,
+  deleteRow,
+  getCellById,
+  insertColumnRight,
+  insertRowBelow,
+  mergeSelectedCells,
+  splitMergedCell,
+  validateMergeSelection,
+} from '@/views/editor/utils/table'
+
+/**
+ * 编辑器唯一领域状态入口。
+ */
+export const useEditorStore = defineStore('editor', () => {
+  /** 当前整张表的数据 */
+  const table = ref<EditorCanvasTable | null>(null)
+  /** 当前激活的单元格 id */
+  const activeCellId = ref('')
+  /** 当前激活的组件 id */
+  const activeFieldId = ref('')
+  /** 当前被选中的单元格 id 列表 */
+  const selectedCellIds = ref<string[]>([])
+  /** 框选时的锚点单元格 */
+  const selectionAnchorCellId = ref('')
+  /** 页面内剪贴板，仅保存组件配置 */
+  const cellClipboard = ref<EditorCellClipboard | null>(null)
+  /** 是否存在未保存改动 */
+  const dirty = ref(false)
+  /** 撤销历史 */
+  const undoHistory = ref<EditorHistorySnapshot[]>([])
+  /** 重做历史 */
+  const redoHistory = ref<EditorHistorySnapshot[]>([])
+
+  /** 当前激活的单元格 */
+  const activeCell = computed(() => {
+    return getCellById(table.value, activeCellId.value)
+  })
+
+  /** 当前激活单元格中的组件列表 */
+  const cellFields = computed(() => {
+    return activeCell.value?.fields ?? []
+  })
+
+  /** 当前激活的组件 */
+  const activeField = computed(() => {
+    return cellFields.value.find((field) => field.uuid === activeFieldId.value) ?? null
+  })
+
+  /** 当前选区是否满足合并条件 */
+  const mergeValidation = computed(() => {
+    return validateMergeSelection(table.value, selectedCellIds.value)
+  })
+
+  /** 是否可以撤销 */
+  const canUndo = computed(() => {
+    return undoHistory.value.length > 0
+  })
+
+  /** 是否可以重做 */
+  const canRedo = computed(() => {
+    return redoHistory.value.length > 0
+  })
+
+  /**
+   * 清空当前选区与焦点组件。
+   */
+  const resetSelection = () => {
+    activeCellId.value = ''
+    activeFieldId.value = ''
+    selectedCellIds.value = []
+    selectionAnchorCellId.value = ''
+  }
+
+  /**
+   * 单元格切换后默认聚焦到该格最后一个组件。
+   */
+  const syncActiveFieldByCell = (cellId: string) => {
+    const nextCell = getCellById(table.value, cellId)
+
+    if (!nextCell) {
+      activeFieldId.value = ''
+      return
+    }
+
+    activeFieldId.value = nextCell.fields.at(-1)?.uuid ?? ''
+  }
+
+  /**
+   * 应用来自画布层的选区结果。
+   */
+  const applySelection = (payload: EditorCanvasSelectionPayload) => {
+    activeCellId.value = payload.activeCellId
+    selectedCellIds.value = payload.selectedCellIds
+    selectionAnchorCellId.value = payload.selectionAnchorCellId
+    syncActiveFieldByCell(payload.activeCellId)
+  }
+
+  /**
+   * 将多选收口成单格选中态。
+   */
+  const collapseSelectionToCell = (cellId: string) => {
+    applySelection({
+      activeCellId: cellId,
+      selectedCellIds: [cellId],
+      selectionAnchorCellId: cellId,
+    })
+  }
+
+  /**
+   * 历史记录只保存 table 快照，选区在恢复时统一清空。
+   */
+  const createHistorySnapshot = (): EditorHistorySnapshot => {
+    return {
+      table: cloneTableSnapshot(table.value),
+    }
+  }
+
+  /**
+   * 恢复历史快照
+   * @param snapshot 历史快照
+   */
+  const restoreHistorySnapshot = (snapshot: EditorHistorySnapshot) => {
+    table.value = cloneTableSnapshot(snapshot.table)
+    resetSelection()
+    dirty.value = true
+  }
+
+  /**
+   * 所有会改动表格结构或字段数据的操作都统一走这里入栈。
+   */
+  const commitTableChange = (updater: (currentTable: EditorCanvasTable | null) => EditorCanvasTable | null) => {
+    const nextTable = updater(table.value)
+
+    if (nextTable === table.value) {
+      return false
+    }
+
+    undoHistory.value = [...undoHistory.value, createHistorySnapshot()]
+    redoHistory.value = []
+    table.value = nextTable
+    dirty.value = true
+
+    return true
+  }
+
+  /**
+   * 撤销时将当前快照压入 redo 栈。
+   */
+  const undo = () => {
+    const snapshot = undoHistory.value.at(-1)
+
+    if (!snapshot) {
+      return false
+    }
+
+    redoHistory.value = [...redoHistory.value, createHistorySnapshot()]
+    undoHistory.value = undoHistory.value.slice(0, -1)
+    restoreHistorySnapshot(snapshot)
+
+    return true
+  }
+
+  /**
+   * 恢复时将当前快照重新压回 undo 栈。
+   */
+  const redo = () => {
+    const snapshot = redoHistory.value.at(-1)
+
+    if (!snapshot) {
+      return false
+    }
+
+    undoHistory.value = [...undoHistory.value, createHistorySnapshot()]
+    redoHistory.value = redoHistory.value.slice(0, -1)
+    restoreHistorySnapshot(snapshot)
+
+    return true
+  }
+
+  /**
+   * 新建或重建表格后统一回到空选中态。
+   */
+  const createTable = (payload: EditorCreateTableForm) => {
+    commitTableChange(() =>
+      createEditorTable(
+        payload.rows,
+        payload.columns,
+        EDITOR_TABLE_DEFAULT_COLUMN_WIDTH,
+        EDITOR_TABLE_DEFAULT_ROW_HEIGHT,
+      ),
+    )
+    resetSelection()
+  }
+
+  /**
+   * 向目标单元格追加一个新字段实例。
+   */
+  const appendFieldToCell = (cellId: string, type: EditorPaletteItem['type']) => {
+    if (!table.value) {
+      ElMessage.warning('请先在画布区域右键新建表格')
+      return
+    }
+
+    const nextField = createFieldInstance(type)
+    const changed = commitTableChange((currentTable) =>
+      replaceCell(currentTable, cellId, (cell) => ({
+        ...cell,
+        fields: [...cell.fields, nextField],
+      })),
+    )
+
+    if (!changed) {
+      return
+    }
+
+    collapseSelectionToCell(cellId)
+    activeFieldId.value = nextField.uuid
+  }
+
+  /**
+   * 组件库点击添加，要求当前已存在焦点单元格。
+   */
+  const selectItem = (item: EditorPaletteItem) => {
+    if (!activeCellId.value) {
+      ElMessage.warning('请先选择单元格')
+      return
+    }
+
+    appendFieldToCell(activeCellId.value, item.type)
+  }
+
+  /**
+   * 放置组件
+   * @param payload 放置组件参数
+   */
+  const placeItem = (payload: EditorCanvasDropPayload) => {
+    appendFieldToCell(payload.cellId, payload.type)
+  }
+
+  /**
+   * 选中组件
+   */
+  const selectField = ({ cellId, fieldId }: EditorSelectFieldPayload) => {
+    collapseSelectionToCell(cellId)
+    activeFieldId.value = fieldId
+  }
+
+  /**
+   * 删除组件
+   */
+  const removeField = ({ cellId, fieldId }: EditorRemoveFieldPayload) => {
+    const targetCell = getCellById(table.value, cellId)
+
+    if (!targetCell) {
+      return
+    }
+
+    const nextFields = targetCell.fields.filter((field) => field.uuid !== fieldId)
+    const changed = commitTableChange((currentTable) =>
+      replaceCell(currentTable, cellId, (cell) => ({
+        ...cell,
+        fields: nextFields,
+      })),
+    )
+
+    if (!changed) {
+      return
+    }
+
+    collapseSelectionToCell(cellId)
+    activeFieldId.value = nextFields.at(-1)?.uuid ?? ''
+  }
+
+  /**
+   * 仅更新当前焦点字段，其他字段保持原样。
+   */
+  const updateField = (patch: EditorFieldPatch) => {
+    const currentActiveCell = activeCell.value
+    const currentActiveField = activeField.value
+
+    if (!currentActiveCell || !currentActiveField) {
+      return
+    }
+
+    commitTableChange((currentTable) =>
+      replaceCell(currentTable, currentActiveCell.id, (cell) => ({
+        ...cell,
+        fields: cell.fields.map((field) => {
+          if (field.uuid !== currentActiveField.uuid) {
+            return field
+          }
+
+          return {
+            ...field,
+            ...patch,
+          }
+        }),
+      })),
+    )
+  }
+
+  /**
+   * 切换字段类型时保留可复用配置，其余字段回退到该类型默认值。
+   */
+  const changeFieldType = (type: EditorPaletteItem['type']) => {
+    const currentField = activeField.value
+
+    if (!currentField) {
+      return
+    }
+
+    const defaults = createFieldDefaults(type)
+
+    updateField({
+      type,
+      placeholder: defaults.placeholder,
+      horizontalAlign: currentField.horizontalAlign || defaults.horizontalAlign,
+      textContent: type === 'text' ? currentField.textContent || defaults.textContent : defaults.textContent,
+      imageUrl: type === 'image' ? currentField.imageUrl || defaults.imageUrl : defaults.imageUrl,
+      options:
+        type === 'radio' || type === 'checkbox' || type === 'select'
+          ? currentField.options.length
+            ? cloneEditorValue(currentField.options)
+            : defaults.options
+          : [],
+      switchActiveText:
+        type === 'switch' ? currentField.switchActiveText || defaults.switchActiveText : defaults.switchActiveText,
+      switchInactiveText:
+        type === 'switch'
+          ? currentField.switchInactiveText || defaults.switchInactiveText
+          : defaults.switchInactiveText,
+    })
+  }
+
+  /**
+   * 删除当前激活组件
+   * fieldId 组件id
+   */
+  const removeActiveField = (fieldId: string) => {
+    const currentActiveCell = activeCell.value
+
+    if (!currentActiveCell) {
+      return
+    }
+
+    removeField({
+      cellId: currentActiveCell.id,
+      fieldId,
+    })
+  }
+
+  /**
+   * 复制源限定为当前激活单元格，避免多选复制带来结构歧义。
+   */
+  const getCopySourceCell = () => {
+    if (!table.value) {
+      ElMessage.warning('请先在画布区域右键新建表格')
+      return null
+    }
+
+    if (selectedCellIds.value.length > 1) {
+      ElMessage.warning('当前仅支持复制单个单元格')
+      return null
+    }
+
+    if (!activeCell.value) {
+      ElMessage.warning('请先选择要复制的单元格')
+      return null
+    }
+
+    return activeCell.value
+  }
+
+  /**
+   * 粘贴优先复用当前选区；无多选时退回到活动单元格。
+   */
+  const getPasteTargetCellIds = () => {
+    if (!table.value) {
+      ElMessage.warning('请先在画布区域右键新建表格')
+      return []
+    }
+
+    if (selectedCellIds.value.length) {
+      return [...selectedCellIds.value]
+    }
+
+    if (activeCell.value) {
+      return [activeCell.value.id]
+    }
+
+    ElMessage.warning('请先选择要粘贴的单元格')
+    return []
+  }
+
+  /**
+   * 深拷贝当前单元格组件，后续粘贴时再为每个目标格重新生成 uuid。
+   */
+  const copyActiveCell = () => {
+    const targetCell = getCopySourceCell()
+
+    if (!targetCell) {
+      return false
+    }
+
+    if (!targetCell.fields.length) {
+      ElMessage.warning('当前单元格没有可复制的组件')
+      return false
+    }
+
+    cellClipboard.value = {
+      fields: copyFieldInstances(targetCell.fields),
+    }
+    ElMessage.success(`已复制 ${targetCell.fields.length} 个组件`)
+
+    return true
+  }
+
+  /**
+   * 粘贴会整体替换目标单元格现有组件，但不影响表格结构和合并状态。
+   */
+  const pasteToActiveCell = () => {
+    const targetCellIds = getPasteTargetCellIds()
+
+    if (!targetCellIds.length) {
+      return false
+    }
+
+    if (!cellClipboard.value?.fields.length) {
+      ElMessage.warning('请先复制单元格组件')
+      return false
+    }
+
+    if (!table.value) {
+      return false
+    }
+
+    const targetCellIdSet = new Set(targetCellIds)
+    const changed = commitTableChange((currentTable) => {
+      if (!currentTable) {
+        return currentTable
+      }
+
+      return {
+        ...currentTable,
+        cells: currentTable.cells.map((cell) => {
+          if (!targetCellIdSet.has(cell.id)) {
+            return cell
+          }
+
+          return {
+            ...cell,
+            fields: copyFieldInstances(cellClipboard.value?.fields ?? [], {
+              regenerateUuid: true,
+            }),
+          }
+        }),
+      }
+    })
+
+    if (!changed) {
+      return false
+    }
+
+    const focusCellId = targetCellIds.includes(activeCellId.value) ? activeCellId.value : (targetCellIds[0] ?? '')
+
+    if (!focusCellId) {
+      return false
+    }
+
+    if (targetCellIds.length === 1) {
+      collapseSelectionToCell(focusCellId)
+    } else {
+      activeCellId.value = focusCellId
+      selectionAnchorCellId.value = selectionAnchorCellId.value || focusCellId
+      syncActiveFieldByCell(focusCellId)
+    }
+
+    return true
+  }
+
+  /**
+   * 列宽拖拽优先与右侧相邻列联动，避免表格无限扩张。
+   */
+  const resizeColumn = ({ index, width }: EditorResizeColumnPayload) => {
+    commitTableChange((currentTable) => {
+      if (!currentTable) {
+        return currentTable
+      }
+
+      const nextColumnWidths = [...currentTable.columnWidths]
+      const currentWidth = nextColumnWidths[index]
+      const nextWidth = nextColumnWidths[index + 1]
+
+      if (currentWidth === undefined) {
+        return currentTable
+      }
+
+      if (nextWidth === undefined) {
+        if (currentWidth === width) {
+          return currentTable
+        }
+
+        nextColumnWidths[index] = width
+      } else {
+        const delta = width - currentWidth
+        const shrinkableDelta = Math.min(delta, nextWidth - EDITOR_TABLE_MIN_COLUMN_WIDTH)
+        const growableDelta = Math.max(delta, -(currentWidth - EDITOR_TABLE_MIN_COLUMN_WIDTH))
+        const appliedDelta = delta >= 0 ? Math.max(0, shrinkableDelta) : Math.min(0, growableDelta)
+
+        if (appliedDelta === 0) {
+          return currentTable
+        }
+
+        nextColumnWidths[index] = currentWidth + appliedDelta
+        nextColumnWidths[index + 1] = nextWidth - appliedDelta
+      }
+
+      return {
+        ...currentTable,
+        columnWidths: nextColumnWidths,
+      }
+    })
+  }
+
+  /**
+   * 行高为显式值，直接覆盖当前行高度。
+   */
+  const resizeRow = ({ index, height }: EditorResizeRowPayload) => {
+    commitTableChange((currentTable) => {
+      if (!currentTable) {
+        return currentTable
+      }
+
+      const nextRowHeights = [...currentTable.rowHeights]
+
+      if (nextRowHeights[index] === height) {
+        return currentTable
+      }
+
+      nextRowHeights[index] = height
+
+      return {
+        ...currentTable,
+        rowHeights: nextRowHeights,
+      }
+    })
+  }
+
+  /**
+   * 右键菜单项由当前表格结构和选区状态共同决定。
+   */
+  const getContextMenuItems = (): EditorContextMenuItem[] => {
+    if (!table.value) {
+      return [
+        {
+          command: 'create',
+          label: '新建表格',
+          icon: 'mdi:table-plus',
+        },
+      ]
+    }
+
+    const items: EditorContextMenuItem[] = []
+
+    if (mergeValidation.value.canMerge) {
+      items.push({
+        command: 'merge-cells',
+        label: '合并单元格',
+        icon: 'mdi:table-merge-cells',
+      })
+    }
+
+    if (activeCell.value && (activeCell.value.rowSpan > 1 || activeCell.value.colSpan > 1)) {
+      items.push({
+        command: 'split-cell',
+        label: '拆分单元格',
+        icon: 'mdi:table-split-cell',
+      })
+    }
+
+    if (activeCell.value) {
+      items.push(
+        {
+          command: 'insert-row-below',
+          label: '下方插入整行',
+          icon: 'mdi:table-row-plus-after',
+        },
+        {
+          command: 'insert-column-right',
+          label: '右侧插入整列',
+          icon: 'mdi:table-column-plus-after',
+        },
+        {
+          command: 'delete-row',
+          label: '删除整行',
+          icon: 'mdi:table-row-remove',
+        },
+        {
+          command: 'delete-column',
+          label: '删除整列',
+          icon: 'mdi:table-column-remove',
+        },
+      )
+    }
+
+    items.push({
+      command: 'rebuild',
+      label: '重建表格',
+      icon: 'mdi:table-refresh',
+    })
+
+    return items
+  }
+
+  /**
+   * 集中处理右键菜单命令。
+   */
+  const executeContextCommand = (command: EditorContextMenuCommand) => {
+    switch (command) {
+      case 'create':
+      case 'rebuild':
+        return
+
+      case 'merge-cells': {
+        if (!table.value) {
+          return
+        }
+
+        const currentMergeValidation = mergeValidation.value
+        const nextTopLeftCellId = currentMergeValidation.topLeftCell?.id ?? ''
+
+        if (!currentMergeValidation.canMerge || !nextTopLeftCellId) {
+          ElMessage.warning(currentMergeValidation.reason || '当前选区无法合并')
+          return
+        }
+
+        const changed = commitTableChange((currentTable) => {
+          if (!currentTable) {
+            return currentTable
+          }
+
+          return mergeSelectedCells(currentTable, selectedCellIds.value)
+        })
+
+        if (!changed) {
+          return
+        }
+
+        collapseSelectionToCell(nextTopLeftCellId)
+        return
+      }
+
+      case 'split-cell': {
+        const currentActiveCell = activeCell.value
+
+        if (!table.value || !currentActiveCell) {
+          return
+        }
+
+        const changed = commitTableChange((currentTable) => {
+          if (!currentTable) {
+            return currentTable
+          }
+
+          return splitMergedCell(currentTable, currentActiveCell.id)
+        })
+
+        if (!changed) {
+          return
+        }
+
+        collapseSelectionToCell(currentActiveCell.id)
+        return
+      }
+
+      case 'insert-row-below': {
+        const currentActiveCell = activeCell.value
+
+        if (!table.value || !currentActiveCell) {
+          return
+        }
+
+        const changed = commitTableChange((currentTable) => {
+          if (!currentTable) {
+            return currentTable
+          }
+
+          return insertRowBelow(currentTable, currentActiveCell.id, EDITOR_TABLE_DEFAULT_ROW_HEIGHT)
+        })
+
+        if (!changed) {
+          return
+        }
+
+        collapseSelectionToCell(currentActiveCell.id)
+        return
+      }
+
+      case 'insert-column-right': {
+        const currentActiveCell = activeCell.value
+
+        if (!table.value || !currentActiveCell) {
+          return
+        }
+
+        const changed = commitTableChange((currentTable) => {
+          if (!currentTable) {
+            return currentTable
+          }
+
+          return insertColumnRight(currentTable, currentActiveCell.id, EDITOR_TABLE_DEFAULT_COLUMN_WIDTH)
+        })
+
+        if (!changed) {
+          return
+        }
+
+        collapseSelectionToCell(currentActiveCell.id)
+        return
+      }
+
+      case 'delete-row': {
+        const currentActiveCell = activeCell.value
+
+        if (!table.value || !currentActiveCell) {
+          return
+        }
+
+        const changed = commitTableChange((currentTable) => {
+          if (!currentTable) {
+            return currentTable
+          }
+
+          return deleteRow(currentTable, currentActiveCell.id)
+        })
+
+        if (!changed) {
+          return
+        }
+
+        resetSelection()
+        return
+      }
+
+      case 'delete-column': {
+        const currentActiveCell = activeCell.value
+
+        if (!table.value || !currentActiveCell) {
+          return
+        }
+
+        const changed = commitTableChange((currentTable) => {
+          if (!currentTable) {
+            return currentTable
+          }
+
+          return deleteColumn(currentTable, currentActiveCell.id)
+        })
+
+        if (!changed) {
+          return
+        }
+
+        resetSelection()
+      }
+    }
+  }
+
+  return {
+    activeCell,
+    activeCellId,
+    activeField,
+    activeFieldId,
+    applySelection,
+    canRedo,
+    canUndo,
+    cellClipboard,
+    cellFields,
+    changeFieldType,
+    collapseSelectionToCell,
+    commitTableChange,
+    copyActiveCell,
+    createTable,
+    dirty,
+    executeContextCommand,
+    getContextMenuItems,
+    mergeValidation,
+    pasteToActiveCell,
+    placeItem,
+    redo,
+    removeActiveField,
+    removeField,
+    resetSelection,
+    resizeColumn,
+    resizeRow,
+    selectField,
+    selectedCellIds,
+    selectionAnchorCellId,
+    selectItem,
+    syncActiveFieldByCell,
+    table,
+    undo,
+    updateField,
+  }
+})
+
+interface EditorFieldDefaults {
+  placeholder: string
+  horizontalAlign: EditorHorizontalAlign
+  textContent: string
+  imageUrl: string
+  options: EditorFieldOption[]
+  switchActiveText: string
+  switchInactiveText: string
+}
+
+const cloneEditorValue = <T>(value: T): T => {
+  return structuredClone(toRaw(value))
+}
+
+/**
+ * 克隆字段实例，可选地重新生成 uuid 用于复制粘贴。
+ */
+const copyFieldInstances = (
+  fields: EditorFieldInstance[],
+  options: {
+    regenerateUuid?: boolean
+  } = {},
+) => {
+  const nextFields = cloneEditorValue(fields)
+
+  if (!options.regenerateUuid) {
+    return nextFields
+  }
+
+  return nextFields.map((field) => ({
+    ...field,
+    uuid: createUUID(),
+  }))
+}
+
+/**
+ * 按组件类型生成默认字段配置。
+ */
+const createFieldDefaults = (type: EditorComponentType): EditorFieldDefaults => {
+  const options = ['radio', 'checkbox', 'select'].includes(type) ? cloneEditorValue(EDITOR_DEFAULT_OPTIONS) : []
+
+  const placeholderMap: Record<EditorComponentType, string> = {
+    text: '',
+    image: '',
+    textbox: '',
+    number: '',
+    radio: '',
+    checkbox: '',
+    select: '请选择',
+    date: 'YYYY-MM-DD',
+    switch: '',
+    upload: '',
+  }
+
+  return {
+    placeholder: placeholderMap[type],
+    horizontalAlign: 'center',
+    textContent: type === 'text' ? '固定文字内容' : '',
+    imageUrl: type === 'image' ? EDITOR_DEFAULT_IMAGE_URL : '',
+    options,
+    switchActiveText: '开启',
+    switchInactiveText: '关闭',
+  }
+}
+
+/**
+ * 创建一个可直接挂到单元格内的新字段实例。
+ */
+const createFieldInstance = (type: EditorComponentType): EditorFieldInstance => {
+  const defaults = createFieldDefaults(type)
+
+  return {
+    uuid: createUUID(),
+    type,
+    placeholder: defaults.placeholder,
+    required: false,
+    helpText: '',
+    horizontalAlign: defaults.horizontalAlign,
+    textContent: defaults.textContent,
+    imageUrl: defaults.imageUrl,
+    options: defaults.options,
+    switchActiveText: defaults.switchActiveText,
+    switchInactiveText: defaults.switchInactiveText,
+  }
+}
+
+/**
+ * 历史记录使用的 table 深拷贝，避免响应式对象直接入栈。
+ */
+const cloneTableSnapshot = (currentTable: EditorCanvasTable | null): EditorCanvasTable | null => {
+  if (!currentTable) {
+    return null
+  }
+
+  return cloneEditorValue(currentTable)
+}
+
+/**
+ * 在不可变更新风格下替换指定单元格。
+ */
+const replaceCell = (
+  currentTable: EditorCanvasTable | null,
+  cellId: string,
+  updater: (cell: EditorCanvasTable['cells'][number]) => EditorCanvasTable['cells'][number],
+) => {
+  if (!currentTable) {
+    return currentTable
+  }
+
+  return {
+    ...currentTable,
+    cells: currentTable.cells.map((cell) => {
+      if (cell.id !== cellId) {
+        return cell
+      }
+
+      return updater(cell)
+    }),
+  }
+}

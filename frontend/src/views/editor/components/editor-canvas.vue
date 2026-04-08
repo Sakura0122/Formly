@@ -141,10 +141,7 @@ const estimateCellHeight = (fieldList: EditorFieldInstance[]) => {
     return total + estimateFieldHeight(field)
   }, 0)
 
-  return Math.max(
-    EDITOR_TABLE_MIN_ROW_HEIGHT,
-    contentHeight + Math.max(0, fieldList.length - 1) * 4 + 8,
-  )
+  return Math.max(EDITOR_TABLE_MIN_ROW_HEIGHT, contentHeight + Math.max(0, fieldList.length - 1) * 4 + 8)
 }
 
 // 自适应行高计算
@@ -219,10 +216,7 @@ const displayColumnWidths = computed(() => {
 // 表格实际渲染宽度 32 + 120 + 120 + 120 = 392
 const displayTableWidth = computed(() => {
   // 行号列宽度 + 所有（经过自适应后的）列宽之和
-  return (
-    EDITOR_TABLE_ROW_HEADER_WIDTH +
-    displayColumnWidths.value.reduce((total, width) => total + width, 0)
-  )
+  return EDITOR_TABLE_ROW_HEADER_WIDTH + displayColumnWidths.value.reduce((total, width) => total + width, 0)
 })
 
 // [{index: 0, columnNumber: 1, label: "A", width: 120}]
@@ -244,9 +238,7 @@ const gridTemplateColumns = computed(() => {
 
 // 25px 25px 25px 25px
 const gridTemplateRows = computed(() => {
-  return `${EDITOR_TABLE_HEADER_HEIGHT}px ${rowHeaders.value
-    .map((row) => `${row.height}px`)
-    .join(' ')}`
+  return `${EDITOR_TABLE_HEADER_HEIGHT}px ${rowHeaders.value.map((row) => `${row.height}px`).join(' ')}`
 })
 
 const createSingleSelection = (cellId: string): EditorCanvasSelectionPayload => {
@@ -310,8 +302,7 @@ const handleCellMouseDown = (event: MouseEvent, cellId: string) => {
   event.preventDefault()
 
   // 如果当前按着 Shift，并且组件里已经有旧的锚点就继续沿用旧锚点，否则就把当前点击的格子 cellId 当作新的锚点
-  selectionDraggingAnchorId.value =
-    event.shiftKey && props.selectionAnchorCellId ? props.selectionAnchorCellId : cellId
+  selectionDraggingAnchorId.value = event.shiftKey && props.selectionAnchorCellId ? props.selectionAnchorCellId : cellId
 
   if (event.shiftKey && props.selectionAnchorCellId) {
     emitRangeSelection(props.selectionAnchorCellId, cellId)
@@ -449,11 +440,7 @@ useEventListener(window, 'mouseup', clearDraggingState)
     <div class="h-full w-full min-h-0" @contextmenu.prevent="handleContextMenu($event)">
       <template v-if="table">
         <el-scrollbar class="h-full w-full">
-          <div
-            ref="canvasViewportRef"
-            class="min-h-full p-4 text-center"
-            @mousedown="handleCanvasBlankMouseDown"
-          >
+          <div ref="canvasViewportRef" class="min-h-full p-4 text-center" @mousedown="handleCanvasBlankMouseDown">
             <div class="inline-block text-left">
               <div
                 class="relative grid shrink-0 border-l border-t border-slate-300 bg-white"

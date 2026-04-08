@@ -1,8 +1,4 @@
-import type {
-  EditorCanvasCell,
-  EditorCanvasSelectionPayload,
-  EditorCanvasTable,
-} from '@/types/editor'
+import type { EditorCanvasCell, EditorCanvasSelectionPayload, EditorCanvasTable } from '@/types/editor'
 
 export const createUUID = (num: number = 8) => {
   return crypto.randomUUID().replace(/-/g, '').slice(0, num)
@@ -203,10 +199,7 @@ const buildSelectionBounds = (table: EditorCanvasTable, selectedCellIds: string[
  * @returns bounds 范围
  * @returns topLeftCell 左上角单元格
  */
-export const validateMergeSelection = (
-  table: EditorCanvasTable | null,
-  selectedCellIds: string[],
-) => {
+export const validateMergeSelection = (table: EditorCanvasTable | null, selectedCellIds: string[]) => {
   if (!table || selectedCellIds.length < 2) {
     return {
       canMerge: false,
@@ -228,9 +221,7 @@ export const validateMergeSelection = (
     }
   }
 
-  const intersectedVisibleCells = getVisibleCells(table).filter((cell) =>
-    intersectsRange(cell, bounds),
-  )
+  const intersectedVisibleCells = getVisibleCells(table).filter((cell) => intersectsRange(cell, bounds))
 
   if (intersectedVisibleCells.length !== selectedCells.length) {
     return {
@@ -582,13 +573,9 @@ export const deleteColumn = (table: EditorCanvasTable, cellId: string) => {
   const nextColumnWidths = [...table.columnWidths]
   nextColumnWidths.splice(deletedColumn - 1, 1)
 
-  return rebuildTableByVisibleCells(
-    table.rows,
-    table.columns - 1,
-    nextVisibleCells,
-    nextColumnWidths,
-    [...table.rowHeights],
-  )
+  return rebuildTableByVisibleCells(table.rows, table.columns - 1, nextVisibleCells, nextColumnWidths, [
+    ...table.rowHeights,
+  ])
 }
 
 /**
@@ -598,11 +585,7 @@ export const deleteColumn = (table: EditorCanvasTable, cellId: string) => {
  * @param defaultRowHeight 默认行高
  * @returns 插入后的表格数据
  */
-export const insertRowBelow = (
-  table: EditorCanvasTable,
-  cellId: string,
-  defaultRowHeight: number,
-) => {
+export const insertRowBelow = (table: EditorCanvasTable, cellId: string, defaultRowHeight: number) => {
   const activeCell = getCellById(table, cellId)
 
   if (!activeCell) {
@@ -678,11 +661,7 @@ export const insertRowBelow = (
  * @param defaultColumnWidth 默认列宽
  * @returns 插入后的表格数据
  */
-export const insertColumnRight = (
-  table: EditorCanvasTable,
-  cellId: string,
-  defaultColumnWidth: number,
-) => {
+export const insertColumnRight = (table: EditorCanvasTable, cellId: string, defaultColumnWidth: number) => {
   const activeCell = getCellById(table, cellId)
 
   if (!activeCell) {
