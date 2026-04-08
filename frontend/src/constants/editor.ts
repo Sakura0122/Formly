@@ -126,17 +126,6 @@ export const EDITOR_DEFAULT_OPTIONS: EditorFieldOption[] = [
   },
 ]
 
-export const EDITOR_DEFAULT_IMAGE_URL =
-  'data:image/svg+xml;utf8,' +
-  encodeURIComponent(
-    `<svg xmlns="http://www.w3.org/2000/svg" width="320" height="120" viewBox="0 0 320 120">
-      <rect width="320" height="120" fill="#e2e8f0"/>
-      <path d="M40 88l42-42 30 30 22-22 58 58H40z" fill="#94a3b8"/>
-      <circle cx="232" cy="46" r="14" fill="#cbd5e1"/>
-      <text x="160" y="108" text-anchor="middle" font-size="16" fill="#64748b" font-family="Arial, sans-serif">Image</text>
-    </svg>`,
-  )
-
 export const EDITOR_DEFAULT_TABLE_FORM: EditorCreateTableForm = {
   rows: 3,
   columns: 3,

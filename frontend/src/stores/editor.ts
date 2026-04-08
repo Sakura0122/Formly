@@ -4,7 +4,6 @@ import { defineStore } from 'pinia'
 import { computed, ref, toRaw } from 'vue'
 
 import {
-  EDITOR_DEFAULT_IMAGE_URL,
   EDITOR_DEFAULT_OPTIONS,
   EDITOR_TABLE_DEFAULT_COLUMN_WIDTH,
   EDITOR_TABLE_DEFAULT_ROW_HEIGHT,
@@ -897,7 +896,7 @@ const createFieldDefaults = (type: EditorComponentType): EditorFieldDefaults => 
     placeholder: placeholderMap[type],
     horizontalAlign: 'center',
     textContent: type === 'text' ? '固定文字内容' : '',
-    imageUrl: type === 'image' ? EDITOR_DEFAULT_IMAGE_URL : '',
+    imageUrl: '',
     options,
     switchActiveText: '开启',
     switchInactiveText: '关闭',

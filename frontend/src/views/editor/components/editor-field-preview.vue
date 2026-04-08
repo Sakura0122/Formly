@@ -1,7 +1,7 @@
 <script setup lang="ts">
+import { Icon } from '@iconify/vue'
 import { computed } from 'vue'
 
-import { EDITOR_DEFAULT_IMAGE_URL } from '@/constants/editor'
 import type { EditorFieldInstance } from '@/types/editor'
 
 const props = defineProps<{
@@ -44,7 +44,7 @@ const textContent = computed(() => {
 })
 
 const imageUrl = computed(() => {
-  return props.field.imageUrl || EDITOR_DEFAULT_IMAGE_URL
+  return props.field.imageUrl.trim()
 })
 
 const textAlignClass = computed(() => {
@@ -79,11 +79,18 @@ const justifyClass = computed(() => {
 
   <div v-else-if="field.type === 'image'" class="flex w-full" :class="justifyClass">
     <el-image
+      v-if="imageUrl"
       class="block h-16 w-auto max-w-full overflow-hidden rounded object-cover"
       fit="cover"
       :preview-src-list="[]"
       :src="imageUrl"
     />
+    <div
+      v-else
+      class="flex h-16 w-20 items-center justify-center rounded border border-slate-200 bg-slate-50 text-slate-300"
+    >
+      <Icon class="text-3xl" icon="ep:picture-filled" />
+    </div>
   </div>
 
   <div v-else-if="field.type === 'textbox'" class="flex h-6 w-full min-w-0 items-center px-2" :class="justifyClass">
