@@ -163,13 +163,19 @@ export const useEditorStore = defineStore('editor', () => {
    * 所有会改动表格结构或字段数据的操作都统一走这里入栈。
    */
   const commitTableChange = (updater: (currentTable: EditorCanvasTable | null) => EditorCanvasTable | null) => {
-    const nextTable = updater(table.value)
+    const currentTableSnapshot = cloneTableSnapshot(table.value)
+    const nextTable = updater(currentTableSnapshot)
 
-    if (nextTable === table.value) {
+    if (nextTable === currentTableSnapshot) {
       return false
     }
 
-    undoHistory.value = [...undoHistory.value, createHistorySnapshot()]
+    undoHistory.value = [
+      ...undoHistory.value,
+      {
+        table: currentTableSnapshot,
+      },
+    ]
     redoHistory.value = []
     table.value = nextTable
     dirty.value = true
