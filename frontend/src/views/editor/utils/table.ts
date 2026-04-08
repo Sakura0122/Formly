@@ -579,35 +579,38 @@ export const deleteColumn = (table: EditorCanvasTable, cellId: string) => {
 }
 
 /**
- * 在下方插入整行
- * @param table 表格数据
- * @param cellId 单元格id
- * @param defaultRowHeight 默认行高
- * @returns 插入后的表格数据
+ * 将插入数量收口为正整数，避免异常值破坏表格结构。
  */
-export const insertRowBelow = (table: EditorCanvasTable, cellId: string, defaultRowHeight: number) => {
+const normalizeInsertCount = (count: number) => {
+  return Math.max(1, Math.floor(count))
+}
+
+const insertRows = (
+  table: EditorCanvasTable,
+  cellId: string,
+  defaultRowHeight: number,
+  count: number,
+  direction: 'above' | 'below',
+) => {
   const activeCell = getCellById(table, cellId)
 
   if (!activeCell) {
     return table
   }
 
-  const insertedRow = activeCell.row + 1
-  // 找出哪些合并主格需要被纵向扩张
+  const safeCount = normalizeInsertCount(count)
+  const insertedRow = direction === 'above' ? activeCell.row : activeCell.row + 1
   const expandableMasters = getVisibleCells(table).filter((cell) => {
     const range = getCellRange(cell)
 
-    return range.rowStart <= activeCell.row && range.rowEnd > activeCell.row
+    return range.rowStart < insertedRow && range.rowEnd >= insertedRow
   })
 
-  // 如果某个主格从第 2 行跨到第 3 行
-  // 你现在在第 2 行下面插一行
-  // 那这个主格必须从 rowSpan = 2 变成 rowSpan = 3
   const shiftedCells = table.cells.map((cell) => {
     if (cell.row >= insertedRow) {
       return {
         ...cell,
-        row: cell.row + 1,
+        row: cell.row + safeCount,
       }
     }
 
@@ -622,64 +625,81 @@ export const insertRowBelow = (table: EditorCanvasTable, cellId: string, default
 
     return {
       ...cell,
-      rowSpan: cell.rowSpan + 1,
+      rowSpan: cell.rowSpan + safeCount,
     }
   })
 
-  for (let col = 1; col <= table.columns; col += 1) {
-    const owner = expandableMasters.find((cell) => {
-      const range = getCellRange(cell)
-      return range.colStart <= col && range.colEnd >= col
-    })
+  for (let row = insertedRow; row < insertedRow + safeCount; row += 1) {
+    for (let col = 1; col <= table.columns; col += 1) {
+      const owner = expandableMasters.find((cell) => {
+        const range = getCellRange(cell)
 
-    nextCells.push(
-      owner
-        ? {
-            ...createCell(insertedRow, col),
-            merged: true,
-            mergeParentId: owner.id,
-          }
-        : createCell(insertedRow, col),
-    )
+        return range.colStart <= col && range.colEnd >= col
+      })
+
+      nextCells.push(
+        owner
+          ? {
+              ...createCell(row, col),
+              merged: true,
+              mergeParentId: owner.id,
+            }
+          : createCell(row, col),
+      )
+    }
   }
 
   const nextRowHeights = [...table.rowHeights]
-  nextRowHeights.splice(insertedRow - 1, 0, defaultRowHeight)
+  nextRowHeights.splice(insertedRow - 1, 0, ...Array.from({ length: safeCount }, () => defaultRowHeight))
 
   return {
     ...table,
-    rows: table.rows + 1,
+    rows: table.rows + safeCount,
     rowHeights: nextRowHeights,
     cells: sortCells(nextCells),
   }
 }
 
 /**
- * 在右侧插入整列
- * @param table 表格数据
- * @param cellId 单元格id
- * @param defaultColumnWidth 默认列宽
- * @returns 插入后的表格数据
+ * 在上方插入整行
  */
-export const insertColumnRight = (table: EditorCanvasTable, cellId: string, defaultColumnWidth: number) => {
+export const insertRowAbove = (table: EditorCanvasTable, cellId: string, defaultRowHeight: number, count: number) => {
+  return insertRows(table, cellId, defaultRowHeight, count, 'above')
+}
+
+/**
+ * 在下方插入整行
+ */
+export const insertRowBelow = (table: EditorCanvasTable, cellId: string, defaultRowHeight: number, count: number) => {
+  return insertRows(table, cellId, defaultRowHeight, count, 'below')
+}
+
+const insertColumns = (
+  table: EditorCanvasTable,
+  cellId: string,
+  defaultColumnWidth: number,
+  count: number,
+  direction: 'left' | 'right',
+) => {
   const activeCell = getCellById(table, cellId)
 
   if (!activeCell) {
     return table
   }
 
-  const insertedColumn = activeCell.col + 1
+  const safeCount = normalizeInsertCount(count)
+  const insertedColumn = direction === 'left' ? activeCell.col : activeCell.col + 1
   const expandableMasters = getVisibleCells(table).filter((cell) => {
     const range = getCellRange(cell)
 
-    return range.colStart <= activeCell.col && range.colEnd > activeCell.col
+    return range.colStart < insertedColumn && range.colEnd >= insertedColumn
   })
 
   const shiftedCells = table.cells.map((cell) => {
     if (cell.col >= insertedColumn) {
       return {
         ...cell,
-        col: cell.col + 1,
+        col: cell.col + safeCount,
       }
     }
 
@@ -694,34 +714,61 @@ export const insertColumnRight = (table: EditorCanvasTable, cellId: string, defa
 
     return {
       ...cell,
-      colSpan: cell.colSpan + 1,
+      colSpan: cell.colSpan + safeCount,
     }
   })
 
-  for (let row = 1; row <= table.rows; row += 1) {
-    const owner = expandableMasters.find((cell) => {
-      const range = getCellRange(cell)
-      return range.rowStart <= row && range.rowEnd >= row
-    })
+  for (let col = insertedColumn; col < insertedColumn + safeCount; col += 1) {
+    for (let row = 1; row <= table.rows; row += 1) {
+      const owner = expandableMasters.find((cell) => {
+        const range = getCellRange(cell)
 
-    nextCells.push(
-      owner
-        ? {
-            ...createCell(row, insertedColumn),
-            merged: true,
-            mergeParentId: owner.id,
-          }
-        : createCell(row, insertedColumn),
-    )
+        return range.rowStart <= row && range.rowEnd >= row
+      })
+
+      nextCells.push(
+        owner
+          ? {
+              ...createCell(row, col),
+              merged: true,
+              mergeParentId: owner.id,
+            }
+          : createCell(row, col),
+      )
+    }
   }
 
   const nextColumnWidths = [...table.columnWidths]
-  nextColumnWidths.splice(insertedColumn - 1, 0, defaultColumnWidth)
+  nextColumnWidths.splice(insertedColumn - 1, 0, ...Array.from({ length: safeCount }, () => defaultColumnWidth))
 
   return {
     ...table,
-    columns: table.columns + 1,
+    columns: table.columns + safeCount,
     columnWidths: nextColumnWidths,
     cells: sortCells(nextCells),
   }
+}
+
+/**
+ * 在左侧插入整列
+ */
+export const insertColumnLeft = (
+  table: EditorCanvasTable,
+  cellId: string,
+  defaultColumnWidth: number,
+  count: number,
+) => {
+  return insertColumns(table, cellId, defaultColumnWidth, count, 'left')
+}
+
+/**
+ * 在右侧插入整列
+ */
+export const insertColumnRight = (
+  table: EditorCanvasTable,
+  cellId: string,
+  defaultColumnWidth: number,
+  count: number,
+) => {
+  return insertColumns(table, cellId, defaultColumnWidth, count, 'right')
 }
