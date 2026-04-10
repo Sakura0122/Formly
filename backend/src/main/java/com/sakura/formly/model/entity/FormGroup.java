@@ -1,6 +1,8 @@
 package com.sakura.formly.model.entity;
 
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.FieldFill;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableLogic;
 import com.baomidou.mybatisplus.annotation.TableName;
@@ -38,11 +40,13 @@ public class FormGroup {
     /**
      * 创建人标识
      */
+    @TableField(fill = FieldFill.INSERT)
     private String createdBy;
 
     /**
      * 更新人标识
      */
+    @TableField(fill = FieldFill.INSERT_UPDATE)
     private String updatedBy;
 
     /**

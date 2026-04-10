@@ -2,9 +2,7 @@ package com.sakura.formly.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.collection.CollUtil;
-import cn.hutool.core.util.IdUtil;
 import cn.hutool.core.util.ObjectUtil;
-import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.sakura.formly.common.ResultCodeEnum;
 import com.sakura.formly.exception.BusinessException;
@@ -17,27 +15,26 @@ import com.sakura.formly.model.vo.formgroup.FormGroupDetailVo;
 import com.sakura.formly.model.vo.formgroup.FormGroupTreeVo;
 import com.sakura.formly.service.FormDefinitionService;
 import com.sakura.formly.service.FormGroupService;
+
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
-* @author sakura
-* @description 针对表【form_group(表单分组)】的数据库操作Service实现
-* @createDate 2026-04-09 17:10:49
-*/
+ * @author sakura
+ * @description 针对表【form_group(表单分组)】的数据库操作Service实现
+ * @createDate 2026-04-09 17:10:49
+ */
 @Service
 @RequiredArgsConstructor
-public class FormGroupServiceImpl extends ServiceImpl<FormGroupMapper, FormGroup>
-    implements FormGroupService{
-
-    private static final String SYSTEM_OPERATOR = "";
+public class FormGroupServiceImpl extends ServiceImpl<FormGroupMapper, FormGroup> implements FormGroupService {
 
     private final ObjectProvider<FormDefinitionService> formDefinitionServiceProvider;
 
@@ -46,13 +43,7 @@ public class FormGroupServiceImpl extends ServiceImpl<FormGroupMapper, FormGroup
     public Long createGroup(FormGroupCreateReq request) {
         validateParentGroup(request.getParentId());
 
-        FormGroup formGroup = new FormGroup();
-        formGroup.setId(IdUtil.getSnowflakeNextId());
-        formGroup.setParentId(request.getParentId());
-        formGroup.setName(StrUtil.trim(request.getName()));
-        formGroup.setSort(ObjectUtil.defaultIfNull(request.getSort(), 0));
-        formGroup.setCreatedBy(SYSTEM_OPERATOR);
-        formGroup.setUpdatedBy(SYSTEM_OPERATOR);
+        FormGroup formGroup = BeanUtil.copyProperties(request, FormGroup.class);
         save(formGroup);
         return formGroup.getId();
     }
@@ -63,12 +54,8 @@ public class FormGroupServiceImpl extends ServiceImpl<FormGroupMapper, FormGroup
         getGroupOrThrow(id);
         validateParentForUpdate(id, request.getParentId());
 
-        FormGroup updateEntity = new FormGroup();
+        FormGroup updateEntity = BeanUtil.copyProperties(request, FormGroup.class);
         updateEntity.setId(id);
-        updateEntity.setParentId(request.getParentId());
-        updateEntity.setName(StrUtil.trim(request.getName()));
-        updateEntity.setSort(ObjectUtil.defaultIfNull(request.getSort(), 0));
-        updateEntity.setUpdatedBy(SYSTEM_OPERATOR);
         updateById(updateEntity);
     }
 
@@ -81,9 +68,9 @@ public class FormGroupServiceImpl extends ServiceImpl<FormGroupMapper, FormGroup
     @Override
     public FormCatalogTreeVo getGroupTree() {
         List<FormGroup> formGroups = lambdaQuery()
-            .orderByAsc(FormGroup::getSort)
-            .orderByAsc(FormGroup::getCreatedAt)
-            .list();
+                .orderByAsc(FormGroup::getSort)
+                .orderByAsc(FormGroup::getCreatedAt)
+                .list();
 
         Map<Long, List<FormGroup>> childrenMap = new HashMap<>();
         for (FormGroup formGroup : formGroups) {
@@ -122,13 +109,13 @@ public class FormGroupServiceImpl extends ServiceImpl<FormGroupMapper, FormGroup
         }
 
         return children.stream()
-            .sorted(Comparator.comparing(FormGroup::getSort).thenComparing(FormGroup::getCreatedAt))
-            .map(group -> {
-                FormGroupTreeVo treeNode = BeanUtil.copyProperties(group, FormGroupTreeVo.class);
-                treeNode.setChildren(buildGroupTree(childrenMap, group.getId()));
-                return treeNode;
-            })
-            .toList();
+                .sorted(Comparator.comparing(FormGroup::getSort).thenComparing(FormGroup::getCreatedAt))
+                .map(group -> {
+                    FormGroupTreeVo treeNode = BeanUtil.copyProperties(group, FormGroupTreeVo.class);
+                    treeNode.setChildren(buildGroupTree(childrenMap, group.getId()));
+                    return treeNode;
+                })
+                .toList();
     }
 
     private FormGroup getGroupOrThrow(Long id) {
@@ -166,7 +153,4 @@ public class FormGroupServiceImpl extends ServiceImpl<FormGroupMapper, FormGroup
         }
     }
 }
-
-
-
 
