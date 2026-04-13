@@ -1,6 +1,7 @@
 package com.sakura.formly.model.vo.formdefinition;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.time.LocalDateTime;
 import lombok.Data;
 
 @Data
@@ -21,4 +22,7 @@ public class FormSimpleVo {
 
     @Schema(description = "排序值")
     private Integer sort;
+
+    @Schema(description = "创建时间")
+    private LocalDateTime createdAt;
 }

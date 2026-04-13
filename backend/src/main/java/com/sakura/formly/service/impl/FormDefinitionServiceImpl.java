@@ -20,18 +20,11 @@ import com.sakura.formly.service.FormDefinitionService;
 import com.sakura.formly.service.FormGroupService;
 import com.sakura.formly.service.FormSubmissionService;
 import com.sakura.formly.service.FormVersionService;
-
 import java.util.List;
-
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * @author sakura
- * @description 针对表【form_definition(表单定义)】的数据库操作Service实现
- * @createDate 2026-04-09 17:10:49
- */
 @Service
 @RequiredArgsConstructor
 public class FormDefinitionServiceImpl extends ServiceImpl<FormDefinitionMapper, FormDefinition> implements FormDefinitionService {
@@ -54,21 +47,20 @@ public class FormDefinitionServiceImpl extends ServiceImpl<FormDefinitionMapper,
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void updateDefinition(Long id, FormDefinitionUpdateReq request) {
-        FormDefinition existingDefinition = getDefinitionOrThrow(id);
+        FormDefinition existingDefinition = getDefinition(id);
         validateGroupId(request.getGroupId());
         validateFormKeyUnique(request.getFormKey(), id);
 
-        FormDefinition updateEntity = BeanUtil.copyProperties(request, FormDefinition.class);
-        updateEntity.setId(id);
-        updateEntity.setCurrentVersionId(existingDefinition.getCurrentVersionId());
-        updateEntity.setPublishedVersionId(existingDefinition.getPublishedVersionId());
-        updateById(updateEntity);
+        FormDefinition formDefinition = BeanUtil.copyProperties(request, FormDefinition.class);
+        formDefinition.setId(id);
+        formDefinition.setCurrentVersionId(existingDefinition.getCurrentVersionId());
+        formDefinition.setPublishedVersionId(existingDefinition.getPublishedVersionId());
+        updateById(formDefinition);
     }
 
     @Override
     public FormDefinitionDetailVo getDefinitionDetail(Long id) {
-        FormDefinition formDefinition = getDefinitionOrThrow(id);
-        return BeanUtil.copyProperties(formDefinition, FormDefinitionDetailVo.class);
+        return BeanUtil.copyProperties(getDefinition(id), FormDefinitionDetailVo.class);
     }
 
     @Override
@@ -87,7 +79,7 @@ public class FormDefinitionServiceImpl extends ServiceImpl<FormDefinitionMapper,
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void deleteDefinition(Long id) {
-        getDefinitionOrThrow(id);
+        getDefinition(id);
         removeDefinitionsWithCascade(List.of(id));
     }
 
@@ -104,16 +96,15 @@ public class FormDefinitionServiceImpl extends ServiceImpl<FormDefinitionMapper,
     }
 
     @Override
-    public List<FormSimpleVo> listRootForms() {
+    public List<FormSimpleVo> listCatalogForms() {
         List<FormDefinition> records = lambdaQuery()
-                .isNull(FormDefinition::getGroupId)
                 .orderByAsc(FormDefinition::getSort)
                 .orderByAsc(FormDefinition::getCreatedAt)
                 .list();
         return BeanUtil.copyToList(records, FormSimpleVo.class);
     }
 
-    private FormDefinition getDefinitionOrThrow(Long id) {
+    private FormDefinition getDefinition(Long id) {
         FormDefinition formDefinition = getById(id);
         if (ObjectUtil.isNull(formDefinition)) {
             throw new BusinessException(ResultCodeEnum.NOT_FOUND_ERROR, "表单定义不存在");
@@ -125,7 +116,7 @@ public class FormDefinitionServiceImpl extends ServiceImpl<FormDefinitionMapper,
         if (ObjectUtil.isNull(groupId)) {
             return;
         }
-        formGroupService.validateGroupExists(groupId);
+        formGroupService.getGroup(groupId);
     }
 
     private void validateFormKeyUnique(String formKey, Long excludeId) {
@@ -147,4 +138,3 @@ public class FormDefinitionServiceImpl extends ServiceImpl<FormDefinitionMapper,
         removeByIds(formIds);
     }
 }
-

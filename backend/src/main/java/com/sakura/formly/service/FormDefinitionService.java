@@ -31,5 +31,5 @@ public interface FormDefinitionService extends IService<FormDefinition> {
 
     void removeByGroupIdWithCascade(Long groupId);
 
-    List<FormSimpleVo> listRootForms();
+    List<FormSimpleVo> listCatalogForms();
 }

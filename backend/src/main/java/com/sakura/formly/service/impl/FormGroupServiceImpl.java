@@ -5,14 +5,15 @@ import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.ObjectUtil;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.sakura.formly.common.ResultCodeEnum;
+import com.sakura.formly.constant.FormCatalogNodeTypeConstant;
 import com.sakura.formly.exception.BusinessException;
 import com.sakura.formly.model.dto.formgroup.FormGroupCreateReq;
 import com.sakura.formly.model.dto.formgroup.FormGroupUpdateReq;
 import com.sakura.formly.model.entity.FormGroup;
 import com.sakura.formly.mapper.FormGroupMapper;
-import com.sakura.formly.model.vo.formgroup.FormCatalogTreeVo;
+import com.sakura.formly.model.vo.formdefinition.FormSimpleVo;
+import com.sakura.formly.model.vo.formgroup.FormCatalogNodeVo;
 import com.sakura.formly.model.vo.formgroup.FormGroupDetailVo;
-import com.sakura.formly.model.vo.formgroup.FormGroupTreeVo;
 import com.sakura.formly.service.FormDefinitionService;
 import com.sakura.formly.service.FormGroupService;
 
@@ -39,86 +40,89 @@ public class FormGroupServiceImpl extends ServiceImpl<FormGroupMapper, FormGroup
     private final ObjectProvider<FormDefinitionService> formDefinitionServiceProvider;
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
     public Long createGroup(FormGroupCreateReq request) {
-        validateParentGroup(request.getParentId());
+        // 1.判断父级分组是否存在
+        getGroup(request.getParentId());
 
+        // 2.请求对象转换为实体对象
         FormGroup formGroup = BeanUtil.copyProperties(request, FormGroup.class);
+
+        // 3.保存
         save(formGroup);
+
+        // 4.返回id
         return formGroup.getId();
     }
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
     public void updateGroup(Long id, FormGroupUpdateReq request) {
-        getGroupOrThrow(id);
+        // 1.判断是否存在该分组
+        getGroup(id);
+
+        // 2.判断父级是否合法
         validateParentForUpdate(id, request.getParentId());
 
-        FormGroup updateEntity = BeanUtil.copyProperties(request, FormGroup.class);
-        updateEntity.setId(id);
-        updateById(updateEntity);
+
+        // 3.请求对象转换为实体对象
+        FormGroup formGroup = BeanUtil.copyProperties(request, FormGroup.class);
+        formGroup.setId(id);
+
+        // 4.更新
+        updateById(formGroup);
     }
 
     @Override
     public FormGroupDetailVo getGroupDetail(Long id) {
-        FormGroup formGroup = getGroupOrThrow(id);
-        return BeanUtil.copyProperties(formGroup, FormGroupDetailVo.class);
+        return BeanUtil.copyProperties(getGroup(id), FormGroupDetailVo.class);
     }
 
     @Override
-    public FormCatalogTreeVo getGroupTree() {
+    public List<FormCatalogNodeVo> getGroupTree() {
+        FormDefinitionService formDefinitionService = formDefinitionServiceProvider.getObject();
+
+        // 1.获取全部分组
         List<FormGroup> formGroups = lambdaQuery()
                 .orderByAsc(FormGroup::getSort)
                 .orderByAsc(FormGroup::getCreatedAt)
                 .list();
 
-        Map<Long, List<FormGroup>> childrenMap = new HashMap<>();
+        // 2.获取全部表单
+        List<FormSimpleVo> forms = formDefinitionService.listCatalogForms();
+
+        // 3.按 parentId 对分组进行分组，把同一父节点下的子分组放到一个 List 里
+        Map<Long, List<FormGroup>> groupChildrenMap = new HashMap<>();
         for (FormGroup formGroup : formGroups) {
-            childrenMap.computeIfAbsent(formGroup.getParentId(), key -> new ArrayList<>()).add(formGroup);
+            groupChildrenMap.computeIfAbsent(formGroup.getParentId(), key -> new ArrayList<>()).add(formGroup);
         }
 
-        FormCatalogTreeVo treeVo = new FormCatalogTreeVo();
-        treeVo.setGroups(buildGroupTree(childrenMap, null));
-        treeVo.setRootForms(formDefinitionServiceProvider.getObject().listRootForms());
-        return treeVo;
+        // 4.按 groupId 对表单进行分组，把同一父节点下的子表单放到一个 List 里
+        Map<Long, List<FormSimpleVo>> formChildrenMap = new HashMap<>();
+        for (FormSimpleVo form : forms) {
+            formChildrenMap.computeIfAbsent(form.getGroupId(), key -> new ArrayList<>()).add(form);
+        }
+
+        // 5.构造树结构
+        return buildCatalogTree(groupChildrenMap, formChildrenMap, null);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void deleteGroup(Long id) {
-        validateGroupExists(id);
-
-        long childCount = lambdaQuery().eq(FormGroup::getParentId, id).count();
+        // 1.判断是否有子分组
+        Long childCount = lambdaQuery().eq(FormGroup::getParentId, id).count();
         if (childCount > 0) {
             throw new BusinessException(ResultCodeEnum.PARAMS_ERROR, "分组下仍有子分组，无法删除");
         }
 
+        // 2.删除分组下的表单
         formDefinitionServiceProvider.getObject().removeByGroupIdWithCascade(id);
+
+        // 3.删除分组
         removeById(id);
     }
 
     @Override
-    public void validateGroupExists(Long id) {
-        getGroupOrThrow(id);
-    }
-
-    private List<FormGroupTreeVo> buildGroupTree(Map<Long, List<FormGroup>> childrenMap, Long parentId) {
-        List<FormGroup> children = childrenMap.get(parentId);
-        if (CollUtil.isEmpty(children)) {
-            return new ArrayList<>();
-        }
-
-        return children.stream()
-                .sorted(Comparator.comparing(FormGroup::getSort).thenComparing(FormGroup::getCreatedAt))
-                .map(group -> {
-                    FormGroupTreeVo treeNode = BeanUtil.copyProperties(group, FormGroupTreeVo.class);
-                    treeNode.setChildren(buildGroupTree(childrenMap, group.getId()));
-                    return treeNode;
-                })
-                .toList();
-    }
-
-    private FormGroup getGroupOrThrow(Long id) {
+    public FormGroup getGroup(Long id) {
         FormGroup formGroup = getById(id);
         if (ObjectUtil.isNull(formGroup)) {
             throw new BusinessException(ResultCodeEnum.NOT_FOUND_ERROR, "分组不存在");
@@ -126,13 +130,47 @@ public class FormGroupServiceImpl extends ServiceImpl<FormGroupMapper, FormGroup
         return formGroup;
     }
 
-    private void validateParentGroup(Long parentId) {
-        if (ObjectUtil.isNull(parentId)) {
-            return;
+    private List<FormCatalogNodeVo> buildCatalogTree(
+            Map<Long, List<FormGroup>> groupChildrenMap,
+            Map<Long, List<FormSimpleVo>> formChildrenMap,
+            Long parentId
+    ) {
+        List<FormCatalogNodeVo> nodes = new ArrayList<>();
+
+        List<FormGroup> childGroups = groupChildrenMap.get(parentId);
+        if (CollUtil.isNotEmpty(childGroups)) {
+            for (FormGroup childGroup : childGroups) {
+                FormCatalogNodeVo node = BeanUtil.copyProperties(childGroup, FormCatalogNodeVo.class);
+                node.setType(FormCatalogNodeTypeConstant.GROUP);
+                node.setChildren(buildCatalogTree(groupChildrenMap, formChildrenMap, childGroup.getId()));
+                nodes.add(node);
+            }
         }
-        getGroupOrThrow(parentId);
+
+        List<FormSimpleVo> childForms = formChildrenMap.get(parentId);
+        if (CollUtil.isNotEmpty(childForms)) {
+            for (FormSimpleVo childForm : childForms) {
+                FormCatalogNodeVo node = BeanUtil.copyProperties(childForm, FormCatalogNodeVo.class);
+                node.setType(FormCatalogNodeTypeConstant.FORM);
+                node.setParentId(childForm.getGroupId());
+                nodes.add(node);
+            }
+        }
+
+        nodes.sort(
+                Comparator.comparing(FormCatalogNodeVo::getSort, Comparator.nullsFirst(Integer::compareTo))
+                        .thenComparing(FormCatalogNodeVo::getCreatedAt, Comparator.nullsFirst(java.time.LocalDateTime::compareTo))
+                        .thenComparing(node -> FormCatalogNodeTypeConstant.GROUP.equals(node.getType()) ? 0 : 1)
+        );
+        return nodes;
     }
 
+    /**
+     * 验证更新时的父分组是否合法
+     *
+     * @param currentId 当前分组ID
+     * @param parentId  父分组ID
+     */
     private void validateParentForUpdate(Long currentId, Long parentId) {
         if (ObjectUtil.isNull(parentId)) {
             return;
@@ -141,7 +179,7 @@ public class FormGroupServiceImpl extends ServiceImpl<FormGroupMapper, FormGroup
             throw new BusinessException(ResultCodeEnum.PARAMS_ERROR, "分组不能挂载到自身");
         }
 
-        FormGroup parentGroup = getGroupOrThrow(parentId);
+        FormGroup parentGroup = getGroup(parentId);
         while (ObjectUtil.isNotNull(parentGroup)) {
             if (ObjectUtil.equal(parentGroup.getId(), currentId)) {
                 throw new BusinessException(ResultCodeEnum.PARAMS_ERROR, "分组不能挂载到自己的子分组下");
@@ -153,4 +191,3 @@ public class FormGroupServiceImpl extends ServiceImpl<FormGroupMapper, FormGroup
         }
     }
 }
-

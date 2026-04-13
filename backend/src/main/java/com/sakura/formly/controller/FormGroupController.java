@@ -3,12 +3,13 @@ package com.sakura.formly.controller;
 import com.sakura.formly.common.Result;
 import com.sakura.formly.model.dto.formgroup.FormGroupCreateReq;
 import com.sakura.formly.model.dto.formgroup.FormGroupUpdateReq;
-import com.sakura.formly.model.vo.formgroup.FormCatalogTreeVo;
+import com.sakura.formly.model.vo.formgroup.FormCatalogNodeVo;
 import com.sakura.formly.model.vo.formgroup.FormGroupDetailVo;
 import com.sakura.formly.service.FormGroupService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -31,14 +32,14 @@ public class FormGroupController {
 
     @Operation(summary = "创建表单分组")
     @PostMapping
-    public Result<Long> create(@Valid @RequestBody FormGroupCreateReq request) {
-        return Result.success(formGroupService.createGroup(request));
+    public Result<Long> create(@Valid @RequestBody FormGroupCreateReq formGroupCreateReq) {
+        return Result.success(formGroupService.createGroup(formGroupCreateReq));
     }
 
     @Operation(summary = "更新表单分组")
     @PutMapping("/{id}")
-    public Result<Void> update(@PathVariable Long id, @Valid @RequestBody FormGroupUpdateReq request) {
-        formGroupService.updateGroup(id, request);
+    public Result<Void> update(@PathVariable Long id, @Valid @RequestBody FormGroupUpdateReq formGroupUpdateReq) {
+        formGroupService.updateGroup(id, formGroupUpdateReq);
         return Result.success();
     }
 
@@ -50,7 +51,7 @@ public class FormGroupController {
 
     @Operation(summary = "查询表单目录树")
     @GetMapping("/tree")
-    public Result<FormCatalogTreeVo> tree() {
+    public Result<List<FormCatalogNodeVo>> tree() {
         return Result.success(formGroupService.getGroupTree());
     }
 

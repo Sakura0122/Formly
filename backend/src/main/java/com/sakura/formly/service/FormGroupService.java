@@ -4,8 +4,9 @@ import com.sakura.formly.model.entity.FormGroup;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.sakura.formly.model.dto.formgroup.FormGroupCreateReq;
 import com.sakura.formly.model.dto.formgroup.FormGroupUpdateReq;
-import com.sakura.formly.model.vo.formgroup.FormCatalogTreeVo;
+import com.sakura.formly.model.vo.formgroup.FormCatalogNodeVo;
 import com.sakura.formly.model.vo.formgroup.FormGroupDetailVo;
+import java.util.List;
 
 /**
 * @author sakura
@@ -20,9 +21,9 @@ public interface FormGroupService extends IService<FormGroup> {
 
     FormGroupDetailVo getGroupDetail(Long id);
 
-    FormCatalogTreeVo getGroupTree();
+    List<FormCatalogNodeVo> getGroupTree();
 
     void deleteGroup(Long id);
 
-    void validateGroupExists(Long id);
+    FormGroup getGroup(Long id);
 }
