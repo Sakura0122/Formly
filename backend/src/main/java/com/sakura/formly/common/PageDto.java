@@ -38,15 +38,21 @@ public class PageDto {
         return p;
     }
 
-    public <T> Page<T> toMpPage(String defaultSortBy, boolean isAsc){
+    public <T> Page<T> toMpPage(String defaultSortBy, boolean isAsc) {
         return this.toMpPage(new OrderItem().setColumn(defaultSortBy).setAsc(isAsc));
     }
 
     public <T> Page<T> toMpPageDefaultSortByCreateTimeDesc() {
-        return toMpPage("create_time", true);
+        return toMpPage(
+                new OrderItem().setColumn("sort").setAsc(true),
+                new OrderItem().setColumn("created_at").setAsc(true)
+        );
     }
 
     public <T> Page<T> toMpPageDefaultSortByUpdateTimeDesc() {
-        return toMpPage("update_time", false);
+        return toMpPage(
+                new OrderItem().setColumn("sort").setAsc(true),
+                new OrderItem().setColumn("updated_at").setAsc(true)
+        );
     }
 }

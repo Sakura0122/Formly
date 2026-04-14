@@ -33,33 +33,33 @@ public class FormDefinitionController {
 
     @Operation(summary = "创建表单定义")
     @PostMapping
-    public Result<Long> create(@Valid @RequestBody FormDefinitionCreateReq request) {
-        return Result.success(formDefinitionService.createDefinition(request));
+    public Result<Long> create(@Valid @RequestBody FormDefinitionCreateReq formDefinitionCreateReq) {
+        return Result.success(formDefinitionService.createFormDefinition(formDefinitionCreateReq));
     }
 
     @Operation(summary = "更新表单定义")
     @PutMapping("/{id}")
-    public Result<Void> update(@PathVariable Long id, @Valid @RequestBody FormDefinitionUpdateReq request) {
-        formDefinitionService.updateDefinition(id, request);
+    public Result<Void> update(@PathVariable Long id, @Valid @RequestBody FormDefinitionUpdateReq formDefinitionUpdateReq) {
+        formDefinitionService.updateFormDefinition(id, formDefinitionUpdateReq);
         return Result.success();
     }
 
     @Operation(summary = "查询表单定义详情")
     @GetMapping("/{id}")
     public Result<FormDefinitionDetailVo> detail(@PathVariable Long id) {
-        return Result.success(formDefinitionService.getDefinitionDetail(id));
+        return Result.success(formDefinitionService.getFormDefinitionDetail(id));
     }
 
     @Operation(summary = "分页查询表单定义")
     @GetMapping("/page")
-    public Result<PageVo<FormDefinitionListVo>> page(@Valid FormDefinitionPageReq request) {
-        return Result.success(formDefinitionService.pageDefinitions(request));
+    public Result<PageVo<FormDefinitionListVo>> page(@Valid FormDefinitionPageReq formDefinitionPageReq) {
+        return Result.success(formDefinitionService.pageFormDefinitions(formDefinitionPageReq));
     }
 
     @Operation(summary = "删除表单定义")
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable Long id) {
-        formDefinitionService.deleteDefinition(id);
+        formDefinitionService.deleteFormDefinition(id);
         return Result.success();
     }
 }

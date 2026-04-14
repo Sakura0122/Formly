@@ -11,7 +11,8 @@ public enum ResultCodeEnum {
     NO_AUTH_ERROR(403, "无权限"),
     NOT_FOUND_ERROR(404, "请求数据不存在"),
     SYSTEM_ERROR(500, "系统内部异常"),
-    OPERATION_ERROR(500, "操作失败")
+    OPERATION_ERROR(500, "操作失败"),
+    UPDATE_ERROR(500, "更新失败")
     ;
 
     /**

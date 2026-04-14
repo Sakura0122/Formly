@@ -13,9 +13,6 @@ public class FormDefinitionPageReq extends PageDto {
     @Schema(description = "所属分组ID")
     private Long groupId;
 
-    @Schema(description = "表单名称")
-    private String name;
-
-    @Schema(description = "表单标识")
-    private String formKey;
+    @Schema(description = "关键字，匹配表单名称和表单标识")
+    private String keyword;
 }

@@ -19,17 +19,17 @@ import java.util.List;
 */
 public interface FormDefinitionService extends IService<FormDefinition> {
 
-    Long createDefinition(FormDefinitionCreateReq request);
+    Long createFormDefinition(FormDefinitionCreateReq request);
 
-    void updateDefinition(Long id, FormDefinitionUpdateReq request);
+    void updateFormDefinition(Long id, FormDefinitionUpdateReq request);
 
-    FormDefinitionDetailVo getDefinitionDetail(Long id);
+    FormDefinitionDetailVo getFormDefinitionDetail(Long id);
 
-    PageVo<FormDefinitionListVo> pageDefinitions(FormDefinitionPageReq request);
+    PageVo<FormDefinitionListVo> pageFormDefinitions(FormDefinitionPageReq request);
 
-    void deleteDefinition(Long id);
+    void deleteFormDefinition(Long id);
 
-    void removeByGroupIdWithCascade(Long groupId);
+    void removeByGroupId(Long groupId);
 
-    List<FormSimpleVo> listCatalogForms();
+    List<FormSimpleVo> getFormDefinitionList();
 }

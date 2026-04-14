@@ -56,19 +56,19 @@ public class FormGroupServiceImpl extends ServiceImpl<FormGroupMapper, FormGroup
 
     @Override
     public void updateGroup(Long id, FormGroupUpdateReq request) {
-        // 1.判断是否存在该分组
-        getGroup(id);
-
-        // 2.判断父级是否合法
+        // 1.判断父级是否合法
         validateParentForUpdate(id, request.getParentId());
 
 
-        // 3.请求对象转换为实体对象
+        // 2.请求对象转换为实体对象
         FormGroup formGroup = BeanUtil.copyProperties(request, FormGroup.class);
         formGroup.setId(id);
 
-        // 4.更新
-        updateById(formGroup);
+        // 3.更新
+        boolean success = updateById(formGroup);
+        if(!success){
+            throw new BusinessException(ResultCodeEnum.UPDATE_ERROR);
+        }
     }
 
     @Override
@@ -87,7 +87,7 @@ public class FormGroupServiceImpl extends ServiceImpl<FormGroupMapper, FormGroup
                 .list();
 
         // 2.获取全部表单
-        List<FormSimpleVo> forms = formDefinitionService.listCatalogForms();
+        List<FormSimpleVo> forms = formDefinitionService.getFormDefinitionList();
 
         // 3.按 parentId 对分组进行分组，把同一父节点下的子分组放到一个 List 里
         Map<Long, List<FormGroup>> groupChildrenMap = new HashMap<>();
@@ -115,7 +115,7 @@ public class FormGroupServiceImpl extends ServiceImpl<FormGroupMapper, FormGroup
         }
 
         // 2.删除分组下的表单
-        formDefinitionServiceProvider.getObject().removeByGroupIdWithCascade(id);
+        formDefinitionServiceProvider.getObject().removeByGroupId(id);
 
         // 3.删除分组
         removeById(id);
