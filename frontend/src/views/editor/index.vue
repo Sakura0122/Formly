@@ -1,16 +1,9 @@
 <script setup lang="ts">
-import { useEventListener } from '@vueuse/core'
-import { ref, useTemplateRef } from 'vue'
-import { useRouter } from 'vue-router'
-import { storeToRefs } from 'pinia'
-
-import { EDITOR_HEADER_ACTION_OPTIONS } from '@/constants/editor'
 import { useEditorStore } from '@/stores/editor'
 import type {
   EditorCanvasContextMenuPayload,
   EditorContextMenuActionPayload,
-  EditorContextMenuItem,
-  EditorHeaderActionKey,
+  EditorContextMenuItem
 } from '@/types/editor'
 import EditorCanvas from '@/views/editor/components/editor-canvas.vue'
 import EditorComponentPalette from '@/views/editor/components/editor-component-palette.vue'
@@ -18,22 +11,21 @@ import EditorConfigPanel from '@/views/editor/components/editor-config-panel.vue
 import EditorContextMenu from '@/views/editor/components/editor-context-menu.vue'
 import EditorCreateTableDialog from '@/views/editor/components/editor-create-table-dialog.vue'
 import EditorHeader from '@/views/editor/components/editor-header.vue'
+import { useEventListener } from '@vueuse/core'
+import { storeToRefs } from 'pinia'
+import { useTemplateRef } from 'vue'
 
 defineOptions({
   name: 'EditorPage',
 })
 
-const router = useRouter()
 const editorStore = useEditorStore()
 const {
   activeCell,
   activeCellId,
   activeField,
   activeFieldId,
-  canRedo,
-  canUndo,
   cellFields,
-  dirty,
   selectedCellIds,
   selectionAnchorCellId,
   table,
@@ -109,49 +101,6 @@ const handleWindowKeydown = (event: KeyboardEvent) => {
 
 useEventListener(window, 'keydown', handleWindowKeydown)
 
-const handleBack = () => {
-  if (window.history.length > 1) {
-    router.back()
-    return
-  }
-
-  ElMessage.info('当前没有可返回的历史页面')
-}
-
-const handlePreview = () => {
-  ElMessage.info('预览能力将在后续阶段接入')
-}
-
-const saveLoading = ref(false)
-const handleSave = async () => {
-  saveLoading.value = true
-  dirty.value = false
-  await Promise.resolve()
-  saveLoading.value = false
-  ElMessage.success('保存事件已输出，等待后续接入真实逻辑')
-}
-
-const publishLoading = ref(false)
-const handlePublish = async () => {
-  publishLoading.value = true
-  dirty.value = false
-  await Promise.resolve()
-  publishLoading.value = false
-  ElMessage.success('发布事件已输出，等待后续接入真实逻辑')
-}
-
-const handleMoreAction = (action: EditorHeaderActionKey) => {
-  if (action === 'shortcut') {
-    ElMessage.info(
-      '已支持快捷键：Ctrl/Cmd+C 复制单元格组件，Ctrl/Cmd+V 粘贴单元格组件，Ctrl/Cmd+Z 撤销，Ctrl/Cmd+Y 恢复',
-    )
-    return
-  }
-
-  const currentAction = EDITOR_HEADER_ACTION_OPTIONS.find((item) => item.key === action)
-  ElMessage.info(`更多操作占位：${currentAction?.label ?? action}`)
-}
-
 const handleCanvasContextMenu = (payload: EditorCanvasContextMenuPayload) => {
   if (table.value && payload.cellId && !selectedCellIds.value.includes(payload.cellId)) {
     editorStore.collapseSelectionToCell(payload.cellId)
@@ -182,22 +131,7 @@ const handleConfigSelectField = (fieldId: string) => {
 
 <template>
   <div class="flex h-screen flex-col overflow-hidden bg-slate-100">
-    <EditorHeader
-      :dirty="dirty"
-      :publish-loading="publishLoading"
-      :redo-disabled="!canRedo"
-      :save-loading="saveLoading"
-      :undo-disabled="!canUndo"
-      status-text="草稿"
-      title="Formly 表单编辑器"
-      @back="handleBack"
-      @more-action="handleMoreAction"
-      @preview="handlePreview"
-      @publish="handlePublish"
-      @redo="editorStore.redo"
-      @save="handleSave"
-      @undo="editorStore.undo"
-    />
+    <EditorHeader />
 
     <main class="flex min-h-0 flex-1 gap-4 overflow-hidden p-4 lg:p-5">
       <div class="min-h-0 w-29 shrink-0">
