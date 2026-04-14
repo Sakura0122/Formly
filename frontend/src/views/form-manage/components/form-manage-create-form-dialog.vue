@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { FormInstance, FormRules } from 'element-plus'
 import { computed, ref } from 'vue'
 
 import { formDefinitionApi } from '@/api/form-definition'
@@ -14,23 +15,46 @@ defineOptions({
 })
 
 const visible = ref(false)
+const formRef = ref<FormInstance>()
 const groupId = ref<FormEntityId | null>(null)
 const groupName = ref('')
-const name = ref('')
-const formKey = ref('')
-const description = ref('')
-const sort = ref(0)
+const form = ref({
+  description: '',
+  formKey: '',
+  name: '',
+  sort: 0,
+})
 const { loading, run: createForm } = useRequest(formDefinitionApi.create)
 
 const dialogTitle = computed(() => (groupId.value === null ? '新建表单' : `在 ${groupName.value || '当前分组'} 下新建表单`))
 
+const rules = ref<FormRules<typeof form.value>>({
+  formKey: [
+    {
+      message: '请输入表单标识',
+      required: true,
+      trigger: 'blur',
+    },
+  ],
+  name: [
+    {
+      message: '请输入表单名称',
+      required: true,
+      trigger: 'blur',
+    },
+  ],
+})
+
 const resetForm = () => {
   groupId.value = null
   groupName.value = ''
-  name.value = ''
-  formKey.value = ''
-  description.value = ''
-  sort.value = 0
+  form.value = {
+    description: '',
+    formKey: '',
+    name: '',
+    sort: 0,
+  }
+  formRef.value?.clearValidate()
 }
 
 const open = (payload?: { groupId: FormEntityId | null; groupName?: string }) => {
@@ -49,25 +73,17 @@ const handleClosed = () => {
 }
 
 const handleConfirm = async () => {
-  const trimmedName = name.value.trim()
-  const trimmedFormKey = formKey.value.trim()
-
-  if (!trimmedName) {
-    ElMessage.warning('请输入表单名称')
-    return
-  }
-
-  if (!trimmedFormKey) {
-    ElMessage.warning('请输入表单标识')
+  const valid = await formRef.value?.validate().catch(() => false)
+  if (!valid) {
     return
   }
 
   const createdId = await createForm({
-    description: description.value.trim(),
-    formKey: trimmedFormKey,
+    description: form.value.description.trim(),
+    formKey: form.value.formKey.trim(),
     groupId: groupId.value,
-    name: trimmedName,
-    sort: sort.value,
+    name: form.value.name.trim(),
+    sort: form.value.sort,
   })
 
   close()
@@ -86,21 +102,18 @@ defineExpose({
 
 <template>
   <el-dialog v-model="visible" :close-on-click-modal="false" :title="dialogTitle" width="480px" @closed="handleClosed">
-    <div class="space-y-4">
-      <div class="space-y-2">
-        <p class="text-sm font-medium text-slate-700">表单名称</p>
-        <el-input v-model="name" maxlength="100" placeholder="请输入表单名称" />
-      </div>
+    <el-form ref="formRef" :model="form" :rules="rules" label-position="top">
+      <el-form-item label="表单名称" prop="name">
+        <el-input v-model="form.name" maxlength="100" placeholder="请输入表单名称" />
+      </el-form-item>
 
-      <div class="space-y-2">
-        <p class="text-sm font-medium text-slate-700">表单标识</p>
-        <el-input v-model="formKey" maxlength="100" placeholder="请输入表单标识" />
-      </div>
+      <el-form-item label="表单标识" prop="formKey">
+        <el-input v-model="form.formKey" maxlength="100" placeholder="请输入表单标识" />
+      </el-form-item>
 
-      <div class="space-y-2">
-        <p class="text-sm font-medium text-slate-700">表单描述</p>
+      <el-form-item label="表单描述" prop="description">
         <el-input
-          v-model="description"
+          v-model="form.description"
           :rows="3"
           maxlength="500"
           placeholder="请输入表单描述"
@@ -108,19 +121,16 @@ defineExpose({
           show-word-limit
           type="textarea"
         />
-      </div>
+      </el-form-item>
 
-      <div class="space-y-2">
-        <p class="text-sm font-medium text-slate-700">排序值</p>
-        <el-input-number v-model="sort" :min="0" class="!w-full" />
-      </div>
-    </div>
+      <el-form-item label="排序值" prop="sort">
+        <el-input-number v-model="form.sort" :min="0" class="!w-full" />
+      </el-form-item>
+    </el-form>
 
     <template #footer>
-      <div class="flex justify-end gap-3">
-        <el-button @click="close">取消</el-button>
-        <el-button :loading="loading" type="primary" @click="handleConfirm">确定</el-button>
-      </div>
+      <el-button @click="close">取消</el-button>
+      <el-button :loading="loading" type="primary" @click="handleConfirm">确定</el-button>
     </template>
   </el-dialog>
 </template>

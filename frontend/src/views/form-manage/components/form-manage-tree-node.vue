@@ -50,7 +50,7 @@ const handleCommand = (command: string | number | object) => {
     >
       <Icon
         :class="isSelected ? 'text-emerald-500' : 'text-slate-500'"
-        :icon="isGroup ? 'solar:folder-line-duotone' : 'solar:file-outline'"
+        :icon="isGroup ? 'solar:folder-with-files-bold' : 'solar:file-outline'"
         width="14"
       />
 

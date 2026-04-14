@@ -63,12 +63,14 @@ public class FormDefinitionServiceImpl extends ServiceImpl<FormDefinitionMapper,
         // 1.判断分组是否存在
         validateGroupId(formDefinitionUpdateReq.getGroupId());
 
-        // 2.请求对象转换为实体对象
-        FormDefinition formDefinition = BeanUtil.copyProperties(formDefinitionUpdateReq, FormDefinition.class);
-        formDefinition.setId(id);
-
-        // 3.更新
-        boolean success = updateById(formDefinition);
+        // 2.显式更新允许置空的字段，确保表单可以移动回根目录
+        boolean success = lambdaUpdate()
+                .eq(FormDefinition::getId, id)
+                .set(FormDefinition::getGroupId, formDefinitionUpdateReq.getGroupId())
+                .set(FormDefinition::getName, formDefinitionUpdateReq.getName())
+                .set(FormDefinition::getDescription, formDefinitionUpdateReq.getDescription())
+                .set(FormDefinition::getSort, formDefinitionUpdateReq.getSort())
+                .update();
         if (!success) {
             throw new BusinessException(ResultCodeEnum.UPDATE_ERROR);
         }

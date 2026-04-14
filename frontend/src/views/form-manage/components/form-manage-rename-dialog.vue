@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { FormInstance, FormRules } from 'element-plus'
 import { computed, ref } from 'vue'
 
 import { formDefinitionApi } from '@/api/form-definition'
@@ -33,8 +34,11 @@ defineOptions({
 })
 
 const visible = ref(false)
+const formRef = ref<FormInstance>()
 const nodeType = ref<'group' | 'form'>('group')
-const name = ref('')
+const form = ref({
+  name: '',
+})
 const target = ref<RenameTarget | null>(null)
 const { loading: updateGroupLoading, run: updateGroup } = useRequest(formGroupApi.update)
 const { loading: updateFormLoading, run: updateForm } = useRequest(formDefinitionApi.update)
@@ -42,16 +46,29 @@ const { loading: updateFormLoading, run: updateForm } = useRequest(formDefinitio
 const dialogTitle = computed(() => (nodeType.value === 'group' ? '修改分组名称' : '修改表单名称'))
 const loading = computed(() => updateGroupLoading.value || updateFormLoading.value)
 
+const rules = ref<FormRules<typeof form.value>>({
+  name: [
+    {
+      message: '请输入名称',
+      required: true,
+      trigger: 'blur',
+    },
+  ],
+})
+
 const resetForm = () => {
   nodeType.value = 'group'
-  name.value = ''
+  form.value = {
+    name: '',
+  }
   target.value = null
+  formRef.value?.clearValidate()
 }
 
 const open = (payload: RenameTarget) => {
   resetForm()
   nodeType.value = payload.type
-  name.value = payload.name
+  form.value.name = payload.name
   target.value = payload
   visible.value = true
 }
@@ -65,16 +82,16 @@ const handleClosed = () => {
 }
 
 const handleConfirm = async () => {
-  const trimmedName = name.value.trim()
-
-  if (!trimmedName) {
-    ElMessage.warning(`请输入${nodeType.value === 'group' ? '分组' : '表单'}名称`)
+  const valid = await formRef.value?.validate().catch(() => false)
+  if (!valid) {
     return
   }
 
   if (!target.value) {
     return
   }
+
+  const trimmedName = form.value.name.trim()
 
   if (target.value.type === 'group') {
     const payload: FormGroupUpdateReq = {
@@ -110,16 +127,15 @@ defineExpose({
 
 <template>
   <el-dialog v-model="visible" :close-on-click-modal="false" :title="dialogTitle" width="420px" @closed="handleClosed">
-    <div class="space-y-2">
-      <p class="text-sm font-medium text-slate-700">{{ nodeType === 'group' ? '分组名称' : '表单名称' }}</p>
-      <el-input v-model="name" maxlength="100" placeholder="请输入名称" @keydown.enter="handleConfirm" />
-    </div>
+    <el-form ref="formRef" :model="form" :rules="rules" label-position="top">
+      <el-form-item :label="nodeType === 'group' ? '分组名称' : '表单名称'" prop="name">
+        <el-input v-model="form.name" maxlength="100" placeholder="请输入名称" @keydown.enter="handleConfirm" />
+      </el-form-item>
+    </el-form>
 
     <template #footer>
-      <div class="flex justify-end gap-3">
-        <el-button @click="close">取消</el-button>
-        <el-button :loading="loading" type="primary" @click="handleConfirm">确定</el-button>
-      </div>
+      <el-button @click="close">取消</el-button>
+      <el-button :loading="loading" type="primary" @click="handleConfirm">确定</el-button>
     </template>
   </el-dialog>
 </template>
