@@ -10,7 +10,6 @@ import lombok.Data;
 @Schema(description = "更新表单定义请求")
 public class FormDefinitionUpdateReq {
 
-    @NotNull(message = "所属分组ID不能为空")
     @Schema(description = "所属分组ID")
     private Long groupId;
 

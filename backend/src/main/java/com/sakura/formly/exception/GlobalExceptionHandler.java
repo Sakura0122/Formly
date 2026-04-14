@@ -24,7 +24,7 @@ public class GlobalExceptionHandler {
                 .collect(Collectors.joining("|"));
         log.error("请求参数校验异常 -> {}", msg);
         log.debug("", e);
-        return Result.error(40000, msg);
+        return Result.error(400, msg);
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
