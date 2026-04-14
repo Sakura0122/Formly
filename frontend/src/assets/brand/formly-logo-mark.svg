@@ -1,0 +1,51 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="formly-bg" x1="44" y1="36" x2="212" y2="220" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ECFDF5" />
+      <stop offset="1" stop-color="#BBF7D0" />
+    </linearGradient>
+    <linearGradient id="formly-paper" x1="78" y1="58" x2="180" y2="198" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFEF7" />
+      <stop offset="1" stop-color="#F0FDF4" />
+    </linearGradient>
+  </defs>
+
+  <path
+    d="M70 28C91 18 114 22 130 30C142 36 153 42 168 42C186 42 205 35 220 48C235 61 236 83 228 102C222 117 222 131 227 146C234 167 232 191 215 205C199 219 176 217 157 222C140 226 124 238 104 235C82 232 68 214 53 200C40 187 23 176 21 157C18 136 34 118 39 100C44 84 38 64 49 49C54 42 61 34 70 28Z"
+    fill="url(#formly-bg)"
+  />
+  <path
+    d="M70 28C91 18 114 22 130 30C142 36 153 42 168 42C186 42 205 35 220 48C235 61 236 83 228 102C222 117 222 131 227 146C234 167 232 191 215 205C199 219 176 217 157 222C140 226 124 238 104 235C82 232 68 214 53 200C40 187 23 176 21 157C18 136 34 118 39 100C44 84 38 64 49 49C54 42 61 34 70 28Z"
+    stroke="#10B981"
+    stroke-width="8"
+    stroke-linejoin="round"
+  />
+
+  <g transform="rotate(-8 128 128)">
+    <rect x="70" y="48" width="116" height="154" rx="28" fill="url(#formly-paper)" stroke="#047857" stroke-width="8" />
+    <path
+      d="M151 48H158C173.464 48 186 60.536 186 76V83L151 48Z"
+      fill="#86EFAC"
+      stroke="#047857"
+      stroke-width="8"
+      stroke-linejoin="round"
+    />
+
+    <rect x="88" y="72" width="54" height="18" rx="9" fill="#10B981" />
+    <rect x="88" y="102" width="76" height="10" rx="5" fill="#A7F3D0" />
+    <rect x="88" y="120" width="64" height="10" rx="5" fill="#A7F3D0" />
+    <rect x="88" y="138" width="82" height="10" rx="5" fill="#A7F3D0" />
+
+    <circle cx="112" cy="168" r="6" fill="#047857" />
+    <circle cx="145" cy="168" r="6" fill="#047857" />
+    <path d="M108 184C114 192 125 196 136 196C147 196 157 192 163 184" stroke="#047857" stroke-width="8" stroke-linecap="round" />
+  </g>
+
+  <path
+    d="M54 70L58 59L64 67L76 65L69 74L75 84L63 81L56 90L55 78L44 73L54 70Z"
+    fill="#FDE68A"
+    stroke="#F59E0B"
+    stroke-width="4"
+    stroke-linejoin="round"
+  />
+</svg>

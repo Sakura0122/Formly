@@ -503,7 +503,7 @@ useEventListener(window, 'mouseup', clearDraggingState)
                 >
                   <div
                     v-if="activeCellId === cell.id && selectedCellIds.length <= 1"
-                    class="pointer-events-none absolute inset-0 border-2 border-sky-500"
+                    class="pointer-events-none absolute inset-0 border-2 border-emerald-500"
                   />
 
                   <div
