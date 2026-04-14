@@ -12,6 +12,7 @@ export type NodeAction =
   | 'create-group'
   | 'create-form'
   | 'rename-group'
+  | 'delete-group'
   | 'edit-form'
   | 'rename-form'
   | 'copy-form'
@@ -20,7 +21,6 @@ export type NodeAction =
 
 const props = defineProps<{
   node: FormCatalogNode
-  expanded: boolean
   selectedNodeId: FormEntityId | null
   selectedNodeType: 'group' | 'form' | null
 }>()
@@ -82,6 +82,12 @@ const handleCommand = (command: string | number | object) => {
               <div class="flex items-center gap-2">
                 <Icon class="text-base text-slate-500" icon="solar:pen-linear" />
                 <span>修改名称</span>
+              </div>
+            </el-dropdown-item>
+            <el-dropdown-item command="delete-group">
+              <div class="flex items-center gap-2 text-rose-500">
+                <Icon class="text-base" icon="solar:trash-bin-trash-linear" />
+                <span>删除分组</span>
               </div>
             </el-dropdown-item>
           </el-dropdown-menu>

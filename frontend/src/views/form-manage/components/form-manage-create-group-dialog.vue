@@ -1,9 +1,8 @@
 <script setup lang="ts">
-import { ElMessage } from 'element-plus'
 import { computed, ref } from 'vue'
 
 import { formGroupApi } from '@/api/form-group'
-import type { FormEntityId, FormGroupCreateReq } from '@/api/form-group/type'
+import type { FormEntityId } from '@/api/form-group/type'
 import { useRequest } from '@/hooks/useRequest'
 
 const emit = defineEmits<{

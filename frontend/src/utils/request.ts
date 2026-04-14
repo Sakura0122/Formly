@@ -1,7 +1,6 @@
 import type { Data } from '@/types/common'
 import type { AxiosRequestConfig, Method } from 'axios'
 import axios from 'axios'
-import { ElMessage } from 'element-plus'
 
 const service = axios.create({
   baseURL: '/api',

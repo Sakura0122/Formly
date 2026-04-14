@@ -1,9 +1,7 @@
 <script setup lang="ts">
-import { ElMessage } from 'element-plus'
 import { computed, ref } from 'vue'
 
 import { formDefinitionApi } from '@/api/form-definition'
-import type { FormDefinitionCreateReq } from '@/api/form-definition/type'
 import type { FormEntityId } from '@/api/form-group/type'
 import { useRequest } from '@/hooks/useRequest'
 

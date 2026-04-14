@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { computed, onMounted, ref, useTemplateRef, watch } from 'vue'
+import { ElMessage } from 'element-plus'
+import { computed, ref, useTemplateRef, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { formDefinitionApi } from '@/api/form-definition'
@@ -11,6 +11,7 @@ import type { FormCatalogNode, FormCatalogNodeType, FormEntityId } from '@/api/f
 import { useRequest } from '@/hooks/useRequest'
 import FormManageCreateFormDialog from '@/views/form-manage/components/form-manage-create-form-dialog.vue'
 import FormManageCreateGroupDialog from '@/views/form-manage/components/form-manage-create-group-dialog.vue'
+import FormManageDeleteDialog from '@/views/form-manage/components/form-manage-delete-dialog.vue'
 import FormManageMoveFormDialog from '@/views/form-manage/components/form-manage-move-form-dialog.vue'
 import FormManageRenameDialog from '@/views/form-manage/components/form-manage-rename-dialog.vue'
 import FormManageTreeNode, { type NodeAction } from '@/views/form-manage/components/form-manage-tree-node.vue'
@@ -38,10 +39,6 @@ const selectedNodeId = ref<FormEntityId | null>(null)
 const selectedNodeType = ref<FormCatalogNodeType | null>(null)
 const selectedFormDetail = ref<FormDefinitionDetail | null>(null)
 const treeRef = useTemplateRef('treeRef')
-
-const { loading: catalogTreeLoading, run: fetchCatalogTree } = useRequest(formGroupApi.getTree)
-const { loading: formDetailLoading, run: fetchFormDetail } = useRequest(formDefinitionApi.getDetail)
-const { run: deleteForm } = useRequest(formDefinitionApi.delete)
 
 const collectGroupIds = (nodes: FormCatalogNode[], result: FormEntityId[] = []) => {
   nodes.forEach((node) => {
@@ -144,7 +141,6 @@ const displayVersion = computed(() => {
 const filteredCatalogTree = computed(() => filterCatalogTree(catalogTree.value, searchKeyword.value))
 const groupOptions = computed(() => flattenGroupOptions(catalogTree.value))
 const hasSelectedForm = computed(() => selectedNodeType.value === 'form' && Boolean(selectedFormDetail.value))
-const isSearching = computed(() => Boolean(searchKeyword.value.trim()))
 const currentNodeKey = computed(() => selectedNodeId.value ?? undefined)
 
 const filterTreeNode = (keyword: string, data: unknown) => {
@@ -157,6 +153,7 @@ const filterTreeNode = (keyword: string, data: unknown) => {
   return currentNode.name.toLowerCase().includes(keyword.trim().toLowerCase())
 }
 
+const { loading: formDetailLoading, run: fetchFormDetail } = useRequest(formDefinitionApi.getDetail)
 const getFormDetail = async (formId: FormEntityId) => {
   if (selectedFormDetail.value?.id === formId) {
     return selectedFormDetail.value
@@ -194,12 +191,14 @@ const restoreSelection = async (preferredSelection?: SelectedNode | null) => {
   await selectNode(targetNode)
 }
 
+const { loading: catalogTreeLoading, run: fetchCatalogTree } = useRequest(formGroupApi.getTree)
 const loadCatalogTree = async (preferredSelection?: SelectedNode | null) => {
   const tree = await fetchCatalogTree()
   catalogTree.value = tree
   expandedGroupIds.value = collectGroupIds(tree)
   await restoreSelection(preferredSelection)
 }
+loadCatalogTree()
 
 const handleTreeExpand = (node: FormCatalogNode) => {
   if (node.type !== 'group' || expandedGroupIds.value.includes(node.id)) {
@@ -273,6 +272,7 @@ const openMoveFormDialog = async (node: FormCatalogNode) => {
   })
 }
 
+// 重新加载树
 const handleMutationSuccess = async (payload: { id: FormEntityId; type: 'group' | 'form' }) => {
   await loadCatalogTree({
     id: payload.id,
@@ -280,17 +280,13 @@ const handleMutationSuccess = async (payload: { id: FormEntityId; type: 'group' 
   })
 }
 
-const handleDeleteForm = async (node: FormCatalogNode) => {
-  await ElMessageBox.confirm(`确定删除表单“${node.name}”吗？`, '删除表单', {
-    confirmButtonText: '删除',
-    confirmButtonClass: 'el-button--danger',
-    cancelButtonText: '取消',
-    type: 'warning',
+const deleteDialogRef = useTemplateRef('deleteDialogRef')
+const openDeleteDialog = (node: FormCatalogNode) => {
+  deleteDialogRef.value?.open({
+    id: node.id,
+    name: node.name,
+    type: node.type,
   })
-
-  await deleteForm(node.id)
-  await loadCatalogTree()
-  ElMessage.success('表单删除成功')
 }
 
 const handleNodeAction = async (payload: { action: NodeAction; node: FormCatalogNode }) => {
@@ -304,8 +300,13 @@ const handleNodeAction = async (payload: { action: NodeAction; node: FormCatalog
     return
   }
 
-  if (payload.action === 'rename-group' || payload.action === 'rename-form') {
+  if (['rename-group', 'rename-form'].includes(payload.action)) {
     await openRenameDialog(payload.node)
+    return
+  }
+
+  if (['delete-group', 'delete-form'].includes(payload.action)) {
+    openDeleteDialog(payload.node)
     return
   }
 
@@ -329,10 +330,6 @@ const handleNodeAction = async (payload: { action: NodeAction; node: FormCatalog
     await openMoveFormDialog(payload.node)
     return
   }
-
-  if (payload.action === 'delete-form') {
-    await handleDeleteForm(payload.node)
-  }
 }
 
 const handleDesignForm = () => {
@@ -348,10 +345,6 @@ const handleDesignForm = () => {
   })
 }
 
-onMounted(async () => {
-  await loadCatalogTree()
-})
-
 watch(searchKeyword, (keyword) => {
   treeRef.value?.filter(keyword)
 })
@@ -364,7 +357,7 @@ watch(searchKeyword, (keyword) => {
         <div class="flex items-center gap-3">
           <el-input v-model="searchKeyword" clearable placeholder="请输入名称">
             <template #prefix>
-              <Icon class="text-slate-400" icon="solar:magnifer-linear" width="18" />
+              <Icon class="text-slate-400" icon="solar:magnifer-linear" width="14" />
             </template>
           </el-input>
 
@@ -393,7 +386,7 @@ watch(searchKeyword, (keyword) => {
         </div>
       </div>
 
-      <div class="min-h-0 flex-1 overflow-y-auto px-4 py-4" v-loading="catalogTreeLoading">
+      <div class="min-h-0 flex-1 px-4 py-4" v-loading="catalogTreeLoading">
         <div
           v-if="filteredCatalogTree.length === 0"
           class="flex h-full flex-col items-center justify-center rounded-3xl border border-dashed border-slate-200 bg-slate-50 px-6 text-center"
@@ -404,30 +397,30 @@ watch(searchKeyword, (keyword) => {
           </p>
         </div>
 
-        <el-tree
-          v-else
-          ref="treeRef"
-          :current-node-key="currentNodeKey"
-          :data="catalogTree"
-          :default-expanded-keys="expandedGroupIds"
-          :expand-on-click-node="false"
-          :filter-node-method="filterTreeNode"
-          :highlight-current="true"
-          node-key="id"
-          @current-change="selectNode"
-          @node-collapse="handleTreeCollapse"
-          @node-expand="handleTreeExpand"
-        >
-          <template #default="{ data, node }">
-            <FormManageTreeNode
-              :expanded="node.expanded || isSearching"
-              :node="data"
-              :selected-node-id="selectedNodeId"
-              :selected-node-type="selectedNodeType"
-              @action="handleNodeAction"
-            />
-          </template>
-        </el-tree>
+        <el-scrollbar v-else class="h-full">
+          <el-tree
+            ref="treeRef"
+            :current-node-key="currentNodeKey"
+            :data="catalogTree"
+            :default-expanded-keys="expandedGroupIds"
+            :expand-on-click-node="false"
+            :filter-node-method="filterTreeNode"
+            :highlight-current="true"
+            node-key="id"
+            @current-change="selectNode"
+            @node-collapse="handleTreeCollapse"
+            @node-expand="handleTreeExpand"
+          >
+            <template #default="{ data }">
+              <FormManageTreeNode
+                :node="data"
+                :selected-node-id="selectedNodeId"
+                :selected-node-type="selectedNodeType"
+                @action="handleNodeAction"
+              />
+            </template>
+          </el-tree>
+        </el-scrollbar>
       </div>
     </aside>
 
@@ -505,5 +498,7 @@ watch(searchKeyword, (keyword) => {
     <FormManageRenameDialog ref="renameDialogRef" @success="handleMutationSuccess" />
 
     <FormManageMoveFormDialog ref="moveFormDialogRef" :options="groupOptions" @success="handleMutationSuccess" />
+
+    <FormManageDeleteDialog ref="deleteDialogRef" @success="handleMutationSuccess" />
   </div>
 </template>
