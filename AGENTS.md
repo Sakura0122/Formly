@@ -1,5 +1,6 @@
 # Vue规则
 模板引用使用最新的 useTemplateRef Api
+禁止用原生button写样式，可以用div或el-button组件
 
 # 工作规则
 

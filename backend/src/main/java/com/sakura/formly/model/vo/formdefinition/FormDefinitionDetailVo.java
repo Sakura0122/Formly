@@ -32,6 +32,9 @@ public class FormDefinitionDetailVo {
     @Schema(description = "排序值")
     private Integer sort;
 
+    @Schema(description = "创建人")
+    private String createdBy;
+
     @Schema(description = "创建时间")
     private LocalDateTime createdAt;
 

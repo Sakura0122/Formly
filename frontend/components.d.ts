@@ -30,9 +30,13 @@ declare module 'vue' {
     ElSelect: typeof import('element-plus/es')['ElSelect']
     ElSwitch: typeof import('element-plus/es')['ElSwitch']
     ElTag: typeof import('element-plus/es')['ElTag']
+    ElTree: typeof import('element-plus/es')['ElTree']
     ElUpload: typeof import('element-plus/es')['ElUpload']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
+  }
+  export interface GlobalDirectives {
+    vLoading: typeof import('element-plus/es')['ElLoadingDirective']
   }
 }
 
@@ -56,6 +60,7 @@ declare global {
   const ElSelect: typeof import('element-plus/es')['ElSelect']
   const ElSwitch: typeof import('element-plus/es')['ElSwitch']
   const ElTag: typeof import('element-plus/es')['ElTag']
+  const ElTree: typeof import('element-plus/es')['ElTree']
   const ElUpload: typeof import('element-plus/es')['ElUpload']
   const RouterLink: typeof import('vue-router')['RouterLink']
   const RouterView: typeof import('vue-router')['RouterView']

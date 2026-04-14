@@ -42,7 +42,9 @@ public class FormGroupServiceImpl extends ServiceImpl<FormGroupMapper, FormGroup
     @Override
     public Long createGroup(FormGroupCreateReq request) {
         // 1.判断父级分组是否存在
-        getGroup(request.getParentId());
+        if (ObjectUtil.isNotNull(request.getParentId())) {
+            getGroup(request.getParentId());
+        }
 
         // 2.请求对象转换为实体对象
         FormGroup formGroup = BeanUtil.copyProperties(request, FormGroup.class);
