@@ -1,28 +1,9 @@
 import type {
   EditorCreateTableForm,
   EditorFieldOption,
-  EditorHeaderActionOption,
   EditorPaletteGroup,
   EditorPaletteItem,
 } from '@/types/editor'
-
-export const EDITOR_HEADER_ACTION_OPTIONS: EditorHeaderActionOption[] = [
-  {
-    key: 'import-schema',
-    label: '导入配置',
-    icon: 'solar:upload-linear',
-  },
-  {
-    key: 'export-schema',
-    label: '导出配置',
-    icon: 'solar:download-linear',
-  },
-  {
-    key: 'shortcut',
-    label: '快捷说明',
-    icon: 'solar:keyboard-linear',
-  },
-]
 
 export const EDITOR_PALETTE_GROUPS: EditorPaletteGroup[] = [
   {

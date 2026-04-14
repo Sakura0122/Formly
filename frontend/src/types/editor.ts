@@ -29,12 +29,6 @@ export interface EditorPaletteItem {
   disabled?: boolean
 }
 
-export interface EditorHeaderActionOption {
-  key: EditorHeaderActionKey
-  label: string
-  icon: string
-}
-
 export interface EditorFieldOption {
   label: string
   value: string

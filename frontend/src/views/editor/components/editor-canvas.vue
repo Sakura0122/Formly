@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useElementSize, useEventListener } from '@vueuse/core'
+import { storeToRefs } from 'pinia'
 import { computed, ref, useTemplateRef } from 'vue'
 
 import {
@@ -8,49 +9,23 @@ import {
   EDITOR_TABLE_MIN_ROW_HEIGHT,
   EDITOR_TABLE_ROW_HEADER_WIDTH,
 } from '@/constants/editor'
+import { useEditorStore } from '@/stores/editor'
 import type {
   EditorCanvasContextMenuPayload,
-  EditorCanvasDropPayload,
   EditorCanvasSelectionPayload,
-  EditorCanvasTable,
   EditorComponentType,
   EditorFieldInstance,
-  EditorResizeColumnPayload,
-  EditorResizeRowPayload,
-  EditorSelectFieldPayload,
 } from '@/types/editor'
 import EditorFieldPreview from '@/views/editor/components/editor-field-preview.vue'
 import { buildSelectionPayload, getCellRange, getVisibleCells } from '@/views/editor/utils/table'
 
-const props = defineProps<{
-  /** 当前整张表的数据 */
-  table: EditorCanvasTable | null
-  /** 当前激活的单元格 id */
-  activeCellId: string
-  /** 当前激活的组件 id */
-  activeFieldId: string
-  /** 当前被选中的单元格 id 列表 */
-  selectedCellIds: string[]
-  /** 框选时的锚点单元格 */
-  selectionAnchorCellId: string
-}>()
-
 const emit = defineEmits<{
-  /** 切换选中单元格 */
-  (e: 'change-selection', payload: EditorCanvasSelectionPayload): void
-  /** 清空选区 */
-  (e: 'clear-selection'): void
-  /** 选中组件 */
-  (e: 'select-field', payload: EditorSelectFieldPayload): void
-  /** 放置组件 */
-  (e: 'place-item', payload: EditorCanvasDropPayload): void
   /** 右键菜单 */
   (e: 'context-menu', payload: EditorCanvasContextMenuPayload): void
-  /** 调整列宽 */
-  (e: 'resize-column', payload: EditorResizeColumnPayload): void
-  /** 调整行高 */
-  (e: 'resize-row', payload: EditorResizeRowPayload): void
 }>()
+
+const editorStore = useEditorStore()
+const { activeCellId, activeFieldId, selectedCellIds, selectionAnchorCellId, table } = storeToRefs(editorStore)
 
 // 框选的锚点单元格id
 const selectionDraggingAnchorId = ref('')
@@ -79,7 +54,7 @@ const toColumnLabel = (index: number) => {
 
 // {"index": 0, "columnNumber": 1, "label": "A", "width": 0}
 const columnHeaders = computed(() => {
-  return Array.from({ length: props.table?.columns ?? 0 }, (_, index) => {
+  return Array.from({ length: table.value?.columns ?? 0 }, (_, index) => {
     return {
       index,
       columnNumber: index + 1,
@@ -147,10 +122,10 @@ const estimateCellHeight = (fieldList: EditorFieldInstance[]) => {
 // 自适应行高计算
 const effectiveRowHeights = computed(() => {
   // 1. 复制一份原始行高数组（用户设置/默认值）
-  const baseHeights = [...(props.table?.rowHeights ?? [])]
+  const baseHeights = [...(table.value?.rowHeights ?? [])]
 
   // 2. 遍历所有可见单元格，检查内容是否撑爆了行高
-  getVisibleCells(props.table).forEach((cell) => {
+  getVisibleCells(table.value).forEach((cell) => {
     const estimatedHeight = estimateCellHeight(cell.fields)
     const spanIndexes = Array.from({ length: cell.rowSpan }, (_, index) => cell.row - 1 + index)
     const currentSpanHeight = spanIndexes.reduce((total, index) => {
@@ -176,7 +151,7 @@ const effectiveRowHeights = computed(() => {
 
 // [{index: 0, rowNumber: 1, height: 25}]
 const rowHeaders = computed(() => {
-  return Array.from({ length: props.table?.rows ?? 0 }, (_, index) => {
+  return Array.from({ length: table.value?.rows ?? 0 }, (_, index) => {
     return {
       index,
       rowNumber: index + 1,
@@ -186,17 +161,17 @@ const rowHeaders = computed(() => {
 })
 
 const visibleCells = computed(() => {
-  return getVisibleCells(props.table)
+  return getVisibleCells(table.value)
 })
 
 // 自适应列宽计算 [120, 120, 120]
 const displayColumnWidths = computed(() => {
-  if (!props.table) {
+  if (!table.value) {
     return []
   }
 
   // 原始列宽数组（用户设置/默认值）
-  const rawWidths = props.table.columnWidths
+  const rawWidths = table.value.columnWidths
   // 所有列宽之和
   const totalWidth = rawWidths.reduce((total, width) => total + width, 0)
   // 可用宽度（视口宽度 - 行号列 - padding）
@@ -224,7 +199,7 @@ const displayColumnHeaders = computed(() => {
   return columnHeaders.value.map((column, index) => {
     return {
       ...column,
-      width: displayColumnWidths.value[index] ?? props.table?.columnWidths[index] ?? 0,
+      width: displayColumnWidths.value[index] ?? table.value?.columnWidths[index] ?? 0,
     }
   })
 })
@@ -250,11 +225,11 @@ const createSingleSelection = (cellId: string): EditorCanvasSelectionPayload => 
 }
 
 const selectedCellIdSet = computed(() => {
-  return new Set(props.selectedCellIds)
+  return new Set(selectedCellIds.value)
 })
 
 const multiSelectionBounds = computed(() => {
-  if (props.selectedCellIds.length < 2) {
+  if (selectedCellIds.value.length < 2) {
     return null
   }
 
@@ -290,7 +265,7 @@ const multiSelectionBounds = computed(() => {
  * @param targetCellId 终点格
  */
 const emitRangeSelection = (anchorCellId: string, targetCellId: string) => {
-  emit('change-selection', buildSelectionPayload(props.table, anchorCellId, targetCellId))
+  editorStore.applySelection(buildSelectionPayload(table.value, anchorCellId, targetCellId))
 }
 
 const handleCellMouseDown = (event: MouseEvent, cellId: string) => {
@@ -302,14 +277,14 @@ const handleCellMouseDown = (event: MouseEvent, cellId: string) => {
   event.preventDefault()
 
   // 如果当前按着 Shift，并且组件里已经有旧的锚点就继续沿用旧锚点，否则就把当前点击的格子 cellId 当作新的锚点
-  selectionDraggingAnchorId.value = event.shiftKey && props.selectionAnchorCellId ? props.selectionAnchorCellId : cellId
+  selectionDraggingAnchorId.value = event.shiftKey && selectionAnchorCellId.value ? selectionAnchorCellId.value : cellId
 
-  if (event.shiftKey && props.selectionAnchorCellId) {
-    emitRangeSelection(props.selectionAnchorCellId, cellId)
+  if (event.shiftKey && selectionAnchorCellId.value) {
+    emitRangeSelection(selectionAnchorCellId.value, cellId)
     return
   }
 
-  emit('change-selection', createSingleSelection(cellId))
+  editorStore.applySelection(createSingleSelection(cellId))
 }
 
 const handleCellMouseEnter = (cellId: string) => {
@@ -327,7 +302,7 @@ const handleCanvasBlankMouseDown = (event: MouseEvent) => {
     return
   }
 
-  emit('clear-selection')
+  editorStore.resetSelection()
 }
 
 /**
@@ -337,9 +312,9 @@ const handleCanvasBlankMouseDown = (event: MouseEvent) => {
  */
 const handleFieldClick = (cellId: string, fieldId: string) => {
   // 把当前单元格设为选中状态
-  emit('change-selection', createSingleSelection(cellId))
+  editorStore.applySelection(createSingleSelection(cellId))
   // 选中组件
-  emit('select-field', {
+  editorStore.selectField({
     cellId,
     fieldId,
   })
@@ -358,7 +333,7 @@ const handleDrop = (event: DragEvent, cellId: string) => {
     return
   }
 
-  emit('place-item', {
+  editorStore.placeItem({
     cellId,
     type: payload.type,
   })
@@ -366,6 +341,10 @@ const handleDrop = (event: DragEvent, cellId: string) => {
 
 // 打开右键菜单
 const handleContextMenu = (event: MouseEvent, cellId = '') => {
+  if (cellId && table.value && !selectedCellIds.value.includes(cellId)) {
+    editorStore.collapseSelectionToCell(cellId)
+  }
+
   emit('context-menu', {
     x: event.clientX,
     y: event.clientY,
@@ -383,7 +362,7 @@ const startColumnResize = (event: MouseEvent, index: number) => {
     type: 'column',
     index,
     startPointer: event.clientX,
-    startSize: props.table?.columnWidths[index] ?? EDITOR_TABLE_MIN_COLUMN_WIDTH,
+    startSize: table.value?.columnWidths[index] ?? EDITOR_TABLE_MIN_COLUMN_WIDTH,
   }
 }
 
@@ -397,7 +376,7 @@ const startRowResize = (event: MouseEvent, index: number) => {
     type: 'row',
     index,
     startPointer: event.clientY,
-    startSize: props.table?.rowHeights[index] ?? EDITOR_TABLE_MIN_ROW_HEIGHT,
+    startSize: table.value?.rowHeights[index] ?? EDITOR_TABLE_MIN_ROW_HEIGHT,
   }
 }
 
@@ -407,7 +386,7 @@ const handleWindowMouseMove = (event: MouseEvent) => {
   }
 
   if (resizeState.value.type === 'column') {
-    emit('resize-column', {
+    editorStore.resizeColumn({
       index: resizeState.value.index,
       width: Math.max(
         EDITOR_TABLE_MIN_COLUMN_WIDTH,
@@ -417,7 +396,7 @@ const handleWindowMouseMove = (event: MouseEvent) => {
     return
   }
 
-  emit('resize-row', {
+  editorStore.resizeRow({
     index: resizeState.value.index,
     height: Math.max(
       EDITOR_TABLE_MIN_ROW_HEIGHT,
@@ -523,7 +502,7 @@ useEventListener(window, 'mouseup', clearDraggingState)
                   @drop.prevent="handleDrop($event, cell.id)"
                 >
                   <div
-                    v-if="activeCellId === cell.id && props.selectedCellIds.length <= 1"
+                    v-if="activeCellId === cell.id && selectedCellIds.length <= 1"
                     class="pointer-events-none absolute inset-0 border-2 border-sky-500"
                   />
 

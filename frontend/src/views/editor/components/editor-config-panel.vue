@@ -1,44 +1,14 @@
 <script setup lang="ts">
-import { computed } from 'vue'
 import type { UploadFile } from 'element-plus'
+import { storeToRefs } from 'pinia'
+import { computed } from 'vue'
 
 import { EDITOR_PALETTE_ITEMS } from '@/constants/editor'
-import type {
-  EditorCanvasCell,
-  EditorComponentType,
-  EditorFieldOptionChangePayload,
-  EditorFieldOptionRemovePayload,
-  EditorHorizontalAlign,
-  EditorFieldOption,
-  EditorFieldPatch,
-  EditorFieldInstance,
-} from '@/types/editor'
+import { useEditorStore } from '@/stores/editor'
+import type { EditorComponentType, EditorFieldOption, EditorHorizontalAlign } from '@/types/editor'
 
-const props = defineProps<{
-  /** 当前激活的单元格 */
-  activeCell: EditorCanvasCell | null
-  /** 当前激活的组件 */
-  activeField: EditorFieldInstance | null
-  /** 单元格组件列表 */
-  cellFields: EditorFieldInstance[]
-}>()
-
-const emit = defineEmits<{
-  /** 更新组件 */
-  (e: 'update-field', patch: EditorFieldPatch): void
-  /** 更新选项 */
-  (e: 'update-option', payload: EditorFieldOptionChangePayload): void
-  /** 添加选项 */
-  (e: 'add-option'): void
-  /** 删除选项 */
-  (e: 'remove-option', payload: EditorFieldOptionRemovePayload): void
-  /** 改变组件类型 */
-  (e: 'change-field-type', type: EditorComponentType): void
-  /** 选中组件 */
-  (e: 'select-field', fieldId: string): void
-  /** 删除组件 */
-  (e: 'remove-field', fieldId: string): void
-}>()
+const editorStore = useEditorStore()
+const { activeCell, activeField, activeFieldId, cellFields } = storeToRefs(editorStore)
 
 const typeOptions = computed(() => {
   return EDITOR_PALETTE_ITEMS.map((item) => {
@@ -50,36 +20,27 @@ const typeOptions = computed(() => {
 })
 
 const supportsPlaceholder = computed(() => {
-  return (
-    props.activeField?.type === 'textbox' ||
-    props.activeField?.type === 'number' ||
-    props.activeField?.type === 'select' ||
-    props.activeField?.type === 'date'
-  )
+  return ['textbox', 'number', 'select', 'date'].includes(activeField.value?.type ?? '')
 })
 
 const supportsTextContent = computed(() => {
-  return props.activeField?.type === 'text'
+  return activeField.value?.type === 'text'
 })
 
 const supportsImage = computed(() => {
-  return props.activeField?.type === 'image'
+  return activeField.value?.type === 'image'
 })
 
 const supportsOptions = computed(() => {
-  return (
-    props.activeField?.type === 'radio' ||
-    props.activeField?.type === 'checkbox' ||
-    props.activeField?.type === 'select'
-  )
+  return ['radio', 'checkbox', 'select'].includes(activeField.value?.type ?? '')
 })
 
 const supportsSwitch = computed(() => {
-  return props.activeField?.type === 'switch'
+  return activeField.value?.type === 'switch'
 })
 
 const supportsRequired = computed(() => {
-  return props.activeField?.type !== 'text' && props.activeField?.type !== 'image'
+  return activeField.value?.type !== 'text' && activeField.value?.type !== 'image'
 })
 
 const horizontalAlignOptions: Array<{ label: string; value: EditorHorizontalAlign }> = [
@@ -125,7 +86,7 @@ const handleImageFileChange = async (uploadFile: UploadFile) => {
 
   const imageUrl = await readFileAsDataUrl(uploadFile.raw)
 
-  emit('update-field', {
+  editorStore.updateField({
     imageUrl,
   })
 }
@@ -142,11 +103,11 @@ const createOptionDraft = (index: number): EditorFieldOption => {
 }
 
 const editableOptions = computed(() => {
-  if (!props.activeField) {
+  if (!activeField.value) {
     return []
   }
 
-  return props.activeField.options.length ? props.activeField.options : [createOptionDraft(0)]
+  return activeField.value.options.length ? activeField.value.options : [createOptionDraft(0)]
 })
 
 /**
@@ -156,7 +117,7 @@ const editableOptions = computed(() => {
  * @param value 选项值
  */
 const updateOption = (index: number, key: keyof EditorFieldOption, value: string) => {
-  emit('update-option', {
+  editorStore.updateActiveFieldOption({
     index,
     key,
     value,
@@ -167,7 +128,7 @@ const updateOption = (index: number, key: keyof EditorFieldOption, value: string
  * 添加选项
  */
 const addOption = () => {
-  emit('add-option')
+  editorStore.addActiveFieldOption()
 }
 
 /**
@@ -175,9 +136,17 @@ const addOption = () => {
  * @param index 选项索引
  */
 const removeOption = (index: number) => {
-  emit('remove-option', {
+  editorStore.removeActiveFieldOption({
     index,
   })
+}
+
+const handleSelectField = (fieldId: string) => {
+  activeFieldId.value = fieldId
+}
+
+const handleRemoveField = (fieldId: string) => {
+  editorStore.removeActiveField(fieldId)
 }
 </script>
 
@@ -205,14 +174,14 @@ const removeOption = (index: number) => {
               class="flex items-center justify-between rounded-xl border px-3 py-2 text-left transition"
               :class="
                 field.uuid === activeField?.uuid
-                  ? 'border-sky-400 bg-sky-50 text-sky-700'
+                  ? 'border-emerald-400 bg-emerald-50 text-emerald-700'
                   : 'border-slate-200 bg-white text-slate-600'
               "
               type="button"
-              @click="emit('select-field', field.uuid)"
+              @click="handleSelectField(field.uuid)"
             >
               <span class="text-sm">{{ index + 1 }}. {{ getComponentLabel(field.type) }}</span>
-              <el-button circle plain size="small" @click.stop="emit('remove-field', field.uuid)">
+              <el-button circle plain size="small" @click.stop="handleRemoveField(field.uuid)">
                 <span class="text-xs">×</span>
               </el-button>
             </button>
@@ -227,7 +196,7 @@ const removeOption = (index: number) => {
                 :model-value="activeField.type"
                 placeholder="选择组件类型"
                 style="width: 100%"
-                @update:model-value="emit('change-field-type', $event as EditorComponentType)"
+                @update:model-value="editorStore.changeFieldType($event as EditorComponentType)"
               >
                 <el-option
                   v-for="option in typeOptions"
@@ -242,7 +211,7 @@ const removeOption = (index: number) => {
               <el-input
                 :model-value="activeField.placeholder"
                 placeholder="请输入占位提示"
-                @update:model-value="emit('update-field', { placeholder: String($event) })"
+                @update:model-value="editorStore.updateField({ placeholder: String($event) })"
               />
             </el-form-item>
 
@@ -251,7 +220,7 @@ const removeOption = (index: number) => {
                 :model-value="activeField.horizontalAlign"
                 size="small"
                 @update:model-value="
-                  emit('update-field', {
+                  editorStore.updateField({
                     horizontalAlign: $event as EditorHorizontalAlign,
                   })
                 "
@@ -268,7 +237,7 @@ const removeOption = (index: number) => {
                 :model-value="activeField.textContent"
                 placeholder="请输入固定文字内容"
                 type="textarea"
-                @update:model-value="emit('update-field', { textContent: String($event) })"
+                @update:model-value="editorStore.updateField({ textContent: String($event) })"
               />
             </el-form-item>
 
@@ -287,7 +256,7 @@ const removeOption = (index: number) => {
                 <el-input
                   :model-value="activeField.imageUrl"
                   placeholder="请输入图片地址"
-                  @update:model-value="emit('update-field', { imageUrl: String($event) })"
+                  @update:model-value="editorStore.updateField({ imageUrl: String($event) })"
                 />
               </div>
             </el-form-item>
@@ -298,14 +267,14 @@ const removeOption = (index: number) => {
                 :model-value="activeField.helpText"
                 placeholder="请输入备注"
                 type="textarea"
-                @update:model-value="emit('update-field', { helpText: String($event) })"
+                @update:model-value="editorStore.updateField({ helpText: String($event) })"
               />
             </el-form-item>
 
             <el-form-item v-if="supportsRequired" label="是否必填">
               <el-switch
                 :model-value="activeField.required"
-                @update:model-value="emit('update-field', { required: Boolean($event) })"
+                @update:model-value="editorStore.updateField({ required: Boolean($event) })"
               />
             </el-form-item>
 
@@ -340,7 +309,7 @@ const removeOption = (index: number) => {
                 <el-input
                   :model-value="activeField.switchActiveText"
                   placeholder="启用"
-                  @update:model-value="emit('update-field', { switchActiveText: String($event) })"
+                  @update:model-value="editorStore.updateField({ switchActiveText: String($event) })"
                 />
               </el-form-item>
 
@@ -349,7 +318,7 @@ const removeOption = (index: number) => {
                   :model-value="activeField.switchInactiveText"
                   placeholder="停用"
                   @update:model-value="
-                    emit('update-field', {
+                    editorStore.updateField({
                       switchInactiveText: String($event),
                     })
                   "
