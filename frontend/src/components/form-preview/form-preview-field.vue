@@ -154,7 +154,7 @@ const handleUploadRemove = (_file: UploadFile, fileList: UploadUserFile[]) => {
     </div>
   </div>
 
-  <div v-else-if="field.type === 'image'" class="flex w-full" :class="justifyClass">
+  <div v-else-if="field.type === 'image'" class="flex w-full py-1" :class="justifyClass">
     <el-image
       v-if="imageUrl"
       class="block h-16 w-auto max-w-full overflow-hidden rounded object-cover"
@@ -267,7 +267,7 @@ const handleUploadRemove = (_file: UploadFile, fileList: UploadUserFile[]) => {
     </el-checkbox-group>
   </div>
 
-  <div v-else-if="field.type === 'select'" class="preview-select-root flex h-full w-full items-center">
+  <div v-else-if="field.type === 'select'" class="preview-select-root flex h-full w-full items-center py-1">
     <el-select
       v-model="textInputValue"
       class="w-full min-w-0"
@@ -312,7 +312,7 @@ const handleUploadRemove = (_file: UploadFile, fileList: UploadUserFile[]) => {
     />
   </div>
 
-  <div v-else class="flex w-full items-center" :class="justifyClass">
+  <div v-else class="flex w-full items-center py-1" :class="justifyClass">
     <el-upload
       class="preview-upload-control"
       action="#"

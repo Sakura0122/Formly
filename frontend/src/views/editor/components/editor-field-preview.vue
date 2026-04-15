@@ -77,7 +77,7 @@ const justifyClass = computed(() => {
     </div>
   </div>
 
-  <div v-else-if="field.type === 'image'" class="flex w-full" :class="justifyClass">
+  <div v-else-if="field.type === 'image'" class="flex w-full py-1" :class="justifyClass">
     <el-image
       v-if="imageUrl"
       class="block h-16 w-auto max-w-full overflow-hidden rounded object-cover"
@@ -94,7 +94,7 @@ const justifyClass = computed(() => {
   </div>
 
   <div v-else-if="field.type === 'textbox'" class="flex min-h-6 w-full min-w-0 items-center px-2" :class="justifyClass">
-    <div class="w-full break-words text-xs leading-5 text-slate-400" :class="textAlignClass">
+    <div class="w-full wrap-break-word text-xs leading-5 text-slate-400" :class="textAlignClass">
       {{ inlineCellPlaceholderText }}
     </div>
   </div>
@@ -104,7 +104,7 @@ const justifyClass = computed(() => {
     class="flex min-h-6 w-full min-w-0 items-center px-2 tabular-nums"
     :class="justifyClass"
   >
-    <div class="w-full break-words text-xs leading-5 text-slate-400" :class="textAlignClass">
+    <div class="w-full wrap-break-word text-xs leading-5 text-slate-400" :class="textAlignClass">
       {{ inlineCellPlaceholderText }}
     </div>
   </div>
@@ -149,7 +149,7 @@ const justifyClass = computed(() => {
 
   <el-select
     v-else-if="field.type === 'select'"
-    class="w-full min-w-0"
+    class="w-full min-w-0 py-1"
     disabled
     :placeholder="placeholderText || '请选择'"
     style="width: 100%"
@@ -174,7 +174,7 @@ const justifyClass = computed(() => {
     />
   </div>
 
-  <div v-else class="flex w-full" :class="justifyClass">
+  <div v-else class="flex w-full py-1" :class="justifyClass">
     <el-upload action="#" disabled :auto-upload="false" :show-file-list="false">
       <el-button class="min-w-0" disabled plain size="small" type="primary">上传文件</el-button>
     </el-upload>
