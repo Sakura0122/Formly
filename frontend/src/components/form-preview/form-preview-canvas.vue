@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 
-import type { EditorCanvasTable, EditorFieldInstance, EditorFormPreviewMode } from '@/types/editor'
+import { EDITOR_TABLE_MIN_ROW_HEIGHT } from '@/constants/editor'
+import type { EditorCanvasCell, EditorCanvasTable, EditorFieldInstance, EditorFormPreviewMode } from '@/types/editor'
 import { getVisibleCells } from '@/views/editor/utils/table'
 import FormPreviewField from '@/components/form-preview/form-preview-field.vue'
 
@@ -16,6 +17,7 @@ const props = withDefaults(
 )
 
 const fieldValueMap = ref<Record<string, unknown>>({})
+const activeCellId = ref('')
 
 const buildFieldInitialValue = (field: EditorFieldInstance) => {
   switch (field.type) {
@@ -51,10 +53,6 @@ watch(
 const estimateChoiceFieldHeight = (field: EditorFieldInstance) => {
   const optionCount = Math.max(field.options.length, 1)
 
-  if (props.mode === 'interactive') {
-    return optionCount * 24 + Math.max(optionCount - 1, 0) * 4 + 8
-  }
-
   return optionCount * 16 + Math.max(optionCount - 1, 0) * 2 + 4
 }
 
@@ -67,13 +65,12 @@ const estimateFieldHeight = (field: EditorFieldInstance) => {
     case 'textbox':
     case 'number':
     case 'date':
-    case 'select':
-      return props.mode === 'interactive' ? 36 : 24
+      return 24
     case 'radio':
     case 'checkbox':
       return estimateChoiceFieldHeight(field)
     case 'upload':
-      return props.mode === 'interactive' ? 40 : 30
+      return 30
     case 'switch':
       return 24
     default:
@@ -81,21 +78,60 @@ const estimateFieldHeight = (field: EditorFieldInstance) => {
   }
 }
 
+const isCompactSingleField = (fieldList: EditorFieldInstance[]) => {
+  if (fieldList.length !== 1) {
+    return false
+  }
+
+  const field = fieldList[0]!
+
+  return ['text', 'textbox', 'number', 'date'].includes(field.type)
+}
+
 const estimateCellHeight = (fieldList: EditorFieldInstance[]) => {
   if (!fieldList.length) {
-    return 28
+    return EDITOR_TABLE_MIN_ROW_HEIGHT
+  }
+
+  if (isCompactSingleField(fieldList)) {
+    return EDITOR_TABLE_MIN_ROW_HEIGHT
   }
 
   const contentHeight = fieldList.reduce((total, field) => {
     return total + estimateFieldHeight(field)
   }, 0)
 
-  return Math.max(28, contentHeight + Math.max(0, fieldList.length - 1) * 6 + 10)
+  return Math.max(EDITOR_TABLE_MIN_ROW_HEIGHT, contentHeight + Math.max(0, fieldList.length - 1) * 4 + 8)
 }
 
 const visibleCells = computed(() => {
   return getVisibleCells(props.table)
 })
+
+const isEditableCell = (cell: EditorCanvasCell) => {
+  return cell.fields.some((field) => !['text', 'image'].includes(field.type))
+}
+
+watch(
+  visibleCells,
+  (cellList) => {
+    if (props.mode !== 'interactive') {
+      activeCellId.value = ''
+      return
+    }
+
+    const hasActiveCell = cellList.some((cell) => cell.id === activeCellId.value && isEditableCell(cell))
+
+    if (hasActiveCell) {
+      return
+    }
+
+    activeCellId.value = cellList.find((cell) => isEditableCell(cell))?.id ?? ''
+  },
+  {
+    immediate: true,
+  },
+)
 
 const effectiveRowHeights = computed(() => {
   const baseHeights = [...(props.table?.rowHeights ?? [])]
@@ -104,7 +140,7 @@ const effectiveRowHeights = computed(() => {
     const estimatedHeight = estimateCellHeight(cell.fields)
     const spanIndexes = Array.from({ length: cell.rowSpan }, (_, index) => cell.row - 1 + index)
     const currentSpanHeight = spanIndexes.reduce((total, index) => {
-      return total + (baseHeights[index] ?? 28)
+      return total + (baseHeights[index] ?? EDITOR_TABLE_MIN_ROW_HEIGHT)
     }, 0)
 
     if (estimatedHeight <= currentSpanHeight) {
@@ -117,7 +153,8 @@ const effectiveRowHeights = computed(() => {
       return
     }
 
-    baseHeights[lastIndex] = (baseHeights[lastIndex] ?? 28) + estimatedHeight - currentSpanHeight
+    baseHeights[lastIndex] =
+      (baseHeights[lastIndex] ?? EDITOR_TABLE_MIN_ROW_HEIGHT) + estimatedHeight - currentSpanHeight
   })
 
   return baseHeights
@@ -141,6 +178,14 @@ const updateFieldValue = (fieldId: string, value: unknown) => {
     [fieldId]: value,
   }
 }
+
+const handleCellClick = (cell: EditorCanvasCell) => {
+  if (props.mode !== 'interactive' || !isEditableCell(cell)) {
+    return
+  }
+
+  activeCellId.value = cell.id
+}
 </script>
 
 <template>
@@ -156,14 +201,25 @@ const updateFieldValue = (fieldId: string, value: unknown) => {
       <div
         v-for="cell in visibleCells"
         :key="cell.id"
-        class="min-w-0 border-r border-b border-slate-800 bg-white"
-        :class="mode === 'readonly' ? 'pointer-events-none' : ''"
+        class="relative min-w-0 border-r border-b border-slate-800 transition-colors"
+        :class="[
+          mode === 'readonly' ? 'pointer-events-none bg-white' : '',
+          mode === 'interactive' && isEditableCell(cell) ? 'cursor-text bg-emerald-50/45 hover:bg-emerald-50/65' : '',
+          mode === 'interactive' && !isEditableCell(cell) ? 'bg-white' : '',
+          activeCellId === cell.id ? 'z-10' : '',
+        ]"
         :style="{
           gridColumn: `${cell.col} / span ${cell.colSpan}`,
           gridRow: `${cell.row} / span ${cell.rowSpan}`,
         }"
+        @click="handleCellClick(cell)"
       >
-        <div class="flex h-full min-w-0 flex-col justify-center gap-1 px-1.5 py-1">
+        <div
+          v-if="mode === 'interactive' && activeCellId === cell.id && isEditableCell(cell)"
+          class="pointer-events-none absolute -inset-px border-2 border-emerald-500 shadow-[0_0_0_1px_rgba(16,185,129,0.12)]"
+        />
+
+        <div class="flex h-full min-w-0 flex-col justify-center gap-0.5 px-1.5 py-0">
           <div v-for="field in cell.fields" :key="field.uuid" class="min-w-0">
             <FormPreviewField
               :field="field"

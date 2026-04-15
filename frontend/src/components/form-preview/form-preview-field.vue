@@ -41,13 +41,10 @@ const previewOptions = computed(() => {
 })
 
 const isReadonly = computed(() => props.mode === 'readonly')
+const isInteractive = computed(() => props.mode === 'interactive')
 
 const inlineCellPlaceholderText = computed(() => {
   return props.field.placeholder || '/'
-})
-
-const inputPlaceholderText = computed(() => {
-  return props.field.placeholder || '请输入内容'
 })
 
 const selectPlaceholderText = computed(() => {
@@ -85,6 +82,34 @@ const justifyClass = computed(() => {
       return 'justify-end'
     default:
       return 'justify-center'
+  }
+})
+
+const previewControlAlignClass = computed(() => {
+  switch (props.field.horizontalAlign) {
+    case 'left':
+      return 'preview-cell-control-left'
+    case 'right':
+      return 'preview-cell-control-right'
+    default:
+      return 'preview-cell-control-center'
+  }
+})
+
+const previewControlStyle = computed<Record<string, string>>(() => {
+  return {
+    '--el-input-bg-color': 'transparent',
+    '--el-input-border-color': 'transparent',
+    '--el-input-hover-border-color': 'transparent',
+    '--el-input-focus-border-color': 'transparent',
+    '--el-fill-color-blank': 'transparent',
+    '--el-select-disabled-border': 'transparent',
+  }
+})
+
+const inputStyle = computed<Record<string, string>>(() => {
+  return {
+    textAlign: props.field.horizontalAlign,
   }
 })
 
@@ -151,7 +176,16 @@ const handleUploadRemove = (_file: UploadFile, fileList: UploadUserFile[]) => {
         {{ inlineCellPlaceholderText }}
       </div>
     </div>
-    <el-input v-else v-model="textInputValue" :placeholder="inputPlaceholderText" size="small" />
+    <el-input
+      v-else
+      v-model="textInputValue"
+      class="preview-cell-control w-full min-w-0"
+      :class="isInteractive ? previewControlAlignClass : ''"
+      :input-style="inputStyle"
+      :placeholder="inlineCellPlaceholderText"
+      size="small"
+      :style="isInteractive ? previewControlStyle : undefined"
+    />
   </div>
 
   <div v-else-if="field.type === 'number'">
@@ -164,11 +198,21 @@ const handleUploadRemove = (_file: UploadFile, fileList: UploadUserFile[]) => {
         {{ inlineCellPlaceholderText }}
       </div>
     </div>
-    <el-input v-else v-model="textInputValue" :placeholder="inputPlaceholderText" size="small" type="number" />
+    <el-input
+      v-else
+      v-model="textInputValue"
+      class="preview-cell-control w-full min-w-0"
+      :class="isInteractive ? previewControlAlignClass : ''"
+      :input-style="inputStyle"
+      :placeholder="inlineCellPlaceholderText"
+      size="small"
+      :style="isInteractive ? previewControlStyle : undefined"
+      type="number"
+    />
   </div>
 
   <div v-else-if="field.type === 'radio'" class="flex w-full" :class="justifyClass">
-    <div v-if="isReadonly" class="flex min-w-0 max-w-full flex-col gap-0.5 py-0.5">
+    <div v-if="isReadonly" class="flex min-w-0 max-w-full flex-col gap-0.5 py-0">
       <div
         v-for="option in previewOptions"
         :key="option.value"
@@ -184,7 +228,7 @@ const handleUploadRemove = (_file: UploadFile, fileList: UploadUserFile[]) => {
         <span class="min-w-0 truncate">{{ option.label }}</span>
       </div>
     </div>
-    <el-radio-group v-else v-model="textInputValue" class="flex min-w-0 max-w-full flex-col items-start gap-1 py-0.5">
+    <el-radio-group v-else v-model="textInputValue" class="flex min-w-0 max-w-full flex-col items-start gap-1 py-0">
       <el-radio v-for="option in previewOptions" :key="option.value" :value="option.value">
         {{ option.label }}
       </el-radio>
@@ -192,7 +236,7 @@ const handleUploadRemove = (_file: UploadFile, fileList: UploadUserFile[]) => {
   </div>
 
   <div v-else-if="field.type === 'checkbox'" class="flex w-full" :class="justifyClass">
-    <div v-if="isReadonly" class="flex min-w-0 max-w-full flex-col gap-0.5 py-0.5">
+    <div v-if="isReadonly" class="flex min-w-0 max-w-full flex-col gap-0.5 py-0">
       <div
         v-for="option in previewOptions"
         :key="option.value"
@@ -211,7 +255,7 @@ const handleUploadRemove = (_file: UploadFile, fileList: UploadUserFile[]) => {
     <el-checkbox-group
       v-else
       v-model="checkboxValue"
-      class="flex min-w-0 max-w-full flex-col items-start gap-1 py-0.5"
+      class="flex min-w-0 max-w-full flex-col items-start gap-1 py-0"
     >
       <el-checkbox v-for="option in previewOptions" :key="option.value" :value="option.value">
         {{ option.label }}
@@ -223,10 +267,12 @@ const handleUploadRemove = (_file: UploadFile, fileList: UploadUserFile[]) => {
     v-else-if="field.type === 'select'"
     v-model="textInputValue"
     class="w-full min-w-0"
+    :class="isInteractive ? ['preview-cell-control', previewControlAlignClass] : ''"
     :disabled="isReadonly"
-    :placeholder="isReadonly ? selectPlaceholderText : '请选择'"
+    :placeholder="isReadonly ? selectPlaceholderText : inlineCellPlaceholderText"
     size="small"
     style="width: 100%"
+    :style="isInteractive ? previewControlStyle : undefined"
   >
     <el-option v-for="option in previewOptions" :key="option.value" :label="option.label" :value="option.value" />
   </el-select>
@@ -242,8 +288,10 @@ const handleUploadRemove = (_file: UploadFile, fileList: UploadUserFile[]) => {
       v-model="textInputValue"
       class="w-full"
       format="YYYY-MM-DD"
-      placeholder="请选择日期"
+      :class="isInteractive ? ['preview-cell-control', previewControlAlignClass] : ''"
+      :placeholder="inlineCellPlaceholderText"
       size="small"
+      :style="isInteractive ? previewControlStyle : undefined"
       type="date"
       value-format="YYYY-MM-DD"
     />
@@ -273,3 +321,69 @@ const handleUploadRemove = (_file: UploadFile, fileList: UploadUserFile[]) => {
     </el-upload>
   </div>
 </template>
+
+<style scoped>
+.preview-cell-control :deep(.el-input__wrapper),
+.preview-cell-control :deep(.el-select__wrapper),
+.preview-cell-control :deep(.el-date-editor.el-input__wrapper),
+.preview-cell-control :deep(.el-date-editor .el-input__wrapper) {
+  box-shadow: none;
+  background-color: transparent;
+  border-radius: 0;
+  min-height: 24px;
+  padding-inline: 0;
+}
+
+.preview-cell-control :deep(.el-input__wrapper:hover),
+.preview-cell-control :deep(.el-input__wrapper.is-focus),
+.preview-cell-control :deep(.el-select__wrapper.is-hovering:not(.is-focused)),
+.preview-cell-control :deep(.el-select__wrapper.is-focused),
+.preview-cell-control :deep(.el-date-editor.el-input__wrapper:hover),
+.preview-cell-control :deep(.el-date-editor.is-focus .el-input__wrapper) {
+  box-shadow: none;
+}
+
+.preview-cell-control :deep(.el-input__inner),
+.preview-cell-control :deep(.el-select__selected-item),
+.preview-cell-control :deep(.el-select__placeholder),
+.preview-cell-control :deep(.el-date-editor .el-input__inner) {
+  color: #334155;
+}
+
+.preview-cell-control-left :deep(.el-input__inner),
+.preview-cell-control-left :deep(.el-date-editor .el-input__inner) {
+  text-align: left;
+}
+
+.preview-cell-control-center :deep(.el-input__inner),
+.preview-cell-control-center :deep(.el-date-editor .el-input__inner) {
+  text-align: center;
+}
+
+.preview-cell-control-right :deep(.el-input__inner),
+.preview-cell-control-right :deep(.el-date-editor .el-input__inner) {
+  text-align: right;
+}
+
+.preview-cell-control-left :deep(.el-select__selection) {
+  justify-content: flex-start;
+}
+
+.preview-cell-control-center :deep(.el-select__selection) {
+  justify-content: center;
+}
+
+.preview-cell-control-right :deep(.el-select__selection) {
+  justify-content: flex-end;
+}
+
+.preview-cell-control-center :deep(.el-select__selected-item),
+.preview-cell-control-center :deep(.el-select__placeholder) {
+  margin-inline: auto;
+}
+
+.preview-cell-control-right :deep(.el-select__selected-item),
+.preview-cell-control-right :deep(.el-select__placeholder) {
+  margin-left: auto;
+}
+</style>
