@@ -9,7 +9,6 @@
             <result property="formId" column="form_id" />
             <result property="versionNo" column="version_no" />
             <result property="schemaJson" column="schema_json" />
-            <result property="isPublished" column="is_published" />
             <result property="publishedAt" column="published_at" />
             <result property="createdBy" column="created_by" />
             <result property="createdAt" column="created_at" />
@@ -18,7 +17,7 @@
     </resultMap>
 
     <sql id="Base_Column_List">
-        id,form_id,version_no,schema_json,is_published,
-        published_at,created_by,created_at,updated_at,deleted_at
+        id,form_id,version_no,schema_json,published_at,
+        created_by,created_at,updated_at,deleted_at
     </sql>
 </mapper>

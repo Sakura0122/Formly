@@ -43,9 +43,9 @@ public class FormDefinition {
     private String description;
 
     /**
-     * 当前最新编辑版本ID
+     * 当前草稿Schema
      */
-    private Long currentVersionId;
+    private String draftSchemaJson;
 
     /**
      * 当前已发布版本ID

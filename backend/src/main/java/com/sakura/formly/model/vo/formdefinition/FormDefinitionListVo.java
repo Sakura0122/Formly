@@ -23,9 +23,6 @@ public class FormDefinitionListVo {
     @Schema(description = "表单描述")
     private String description;
 
-    @Schema(description = "当前编辑版本ID")
-    private Long currentVersionId;
-
     @Schema(description = "已发布版本ID")
     private Long publishedVersionId;
 

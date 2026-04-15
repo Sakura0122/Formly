@@ -134,7 +134,7 @@ const formatDateTime = (value?: string | null) => {
 }
 
 const displayVersion = computed(() => {
-  const versionId = selectedFormDetail.value?.currentVersionId ?? selectedFormDetail.value?.publishedVersionId
+  const versionId = selectedFormDetail.value?.publishedVersionId
   return versionId ? String(versionId) : '--'
 })
 

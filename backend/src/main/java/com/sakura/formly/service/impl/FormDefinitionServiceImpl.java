@@ -92,8 +92,9 @@ public class FormDefinitionServiceImpl extends ServiceImpl<FormDefinitionMapper,
         FormDefinitionEditorVo formDefinitionEditorVo = BeanUtil.copyProperties(formDefinition, FormDefinitionEditorVo.class);
 
         // 3.填充table的json数据
-        FormVersion currentVersion = getCurrentVersion(formDefinition.getCurrentVersionId());
-        formDefinitionEditorVo.setCurrentSchema(getCurrentSchema(currentVersion));
+        FormVersion publishedVersion = getVersion(formDefinition.getPublishedVersionId());
+        formDefinitionEditorVo.setCurrentSchema(getCurrentSchema(resolveEditorSchemaJson(formDefinition, publishedVersion)));
+        formDefinitionEditorVo.setHasUnpublishedDraft(hasUnpublishedDraft(formDefinition.getDraftSchemaJson(), publishedVersion));
 
         // 4.返回
         return formDefinitionEditorVo;
@@ -119,14 +120,23 @@ public class FormDefinitionServiceImpl extends ServiceImpl<FormDefinitionMapper,
         // 1.获取表单详情
         FormDefinition formDefinition = getFormDefinitionById(id);
 
-        // 2.创建版本记录
-        FormVersion formVersion = createDraftVersion(formDefinition, formSchemaReq.getSchemaJson());
+        // 2.序列化JSON
+        String nextSchemaJson = writeSchemaJson(formSchemaReq.getSchemaJson());
 
-        // 3.更新表单指针
-        updateDefinitionVersionPointers(formDefinition.getId(), formVersion.getId(), formDefinition.getPublishedVersionId());
+        // 3.获取当前发布版本详情
+        FormVersion publishedVersion = getVersion(formDefinition.getPublishedVersionId());
 
-        // 4.返回
-        return buildPersistVo(formVersion, formVersion.getId(), formDefinition.getPublishedVersionId(), false);
+        // 4.保存当前草稿
+        String nextDraftSchemaJson = nextSchemaJson;
+        if (ObjectUtil.isNotNull(publishedVersion) && !hasSchemaChanged(publishedVersion.getSchemaJson(), nextSchemaJson)) {
+            nextDraftSchemaJson = null;
+        }
+
+        // 5.更新表单草稿与发布指针
+        updateDefinitionDraft(formDefinition.getId(), nextDraftSchemaJson, formDefinition.getPublishedVersionId());
+
+        // 5.返回
+        return buildPersistVo(formDefinition.getPublishedVersionId(), hasUnpublishedDraft(nextDraftSchemaJson, publishedVersion), null, false);
     }
 
     @Override
@@ -138,25 +148,25 @@ public class FormDefinitionServiceImpl extends ServiceImpl<FormDefinitionMapper,
         // 2.序列化JSON
         String nextSchemaJson = writeSchemaJson(formSchemaReq.getSchemaJson());
 
-        // 3.获取当前版本详情
-        FormVersion currentVersion = getCurrentVersion(formDefinition.getCurrentVersionId());
+        // 3.获取当前发布版本详情
+        FormVersion publishedVersion = getVersion(formDefinition.getPublishedVersionId());
 
         // 4.是否已是最新发布版本
-        if (isCurrentVersionPublished(formDefinition, currentVersion, nextSchemaJson)) {
-            return buildPersistVo(currentVersion, formDefinition.getCurrentVersionId(), formDefinition.getPublishedVersionId(), true);
+        if (ObjectUtil.isNotNull(publishedVersion) && !hasSchemaChanged(publishedVersion.getSchemaJson(), nextSchemaJson)) {
+            if (StrUtil.isNotBlank(formDefinition.getDraftSchemaJson())) {
+                updateDefinitionDraft(formDefinition.getId(), null, formDefinition.getPublishedVersionId());
+            }
+            return buildPersistVo(formDefinition.getPublishedVersionId(), false, publishedVersion.getVersionNo(), true);
         }
 
-        // 5.根据当前编辑器内容确定本次要发布的目标版本
-        FormVersion targetVersion = resolvePublishTargetVersion(formDefinition, currentVersion, nextSchemaJson);
+        // 5.创建新的发布版本
+        FormVersion targetVersion = createPublishedVersion(formDefinition.getId(), nextSchemaJson);
 
-        // 6.将目标版本标记为已发布
-        publishVersion(targetVersion);
+        // 6.更新表单发布指针并清空草稿
+        updateDefinitionDraft(formDefinition.getId(), null, targetVersion.getId());
 
-        // 7.更新表单指针
-        updateDefinitionVersionPointers(formDefinition.getId(), targetVersion.getId(), targetVersion.getId());
-
-        // 8.返回
-        return buildPersistVo(targetVersion, targetVersion.getId(), targetVersion.getId(), false);
+        // 7.返回
+        return buildPersistVo(targetVersion.getId(), false, targetVersion.getVersionNo(), false);
     }
 
     @Override
@@ -196,55 +206,53 @@ public class FormDefinitionServiceImpl extends ServiceImpl<FormDefinitionMapper,
 
     /**
      * 获取当前版本的表格结构
-     * @param currentVersion 当前版本
+     *
+     * @param schemaJson schema 内容
      * @return 表格结构
      */
-    private Object getCurrentSchema(FormVersion currentVersion) {
-        if (ObjectUtil.isNull(currentVersion) || StrUtil.isBlank(currentVersion.getSchemaJson())) {
+    private Object getCurrentSchema(String schemaJson) {
+        if (StrUtil.isBlank(schemaJson)) {
             return null;
         }
 
         try {
-            return objectMapper.readValue(currentVersion.getSchemaJson(), Object.class);
+            return objectMapper.readValue(schemaJson, Object.class);
         } catch (JsonProcessingException e) {
             throw new BusinessException(ResultCodeEnum.SYSTEM_ERROR, "当前 schema 解析失败");
         }
     }
 
     /**
-     * 获取当前表单版本详情
-     * @param currentVersionId 当前版本id
+     * 获取表单版本详情
+     *
+     * @param versionId 版本id
      * @return 表单版本详情
      */
-    private FormVersion getCurrentVersion(Long currentVersionId) {
-        if (ObjectUtil.isNull(currentVersionId)) {
+    private FormVersion getVersion(Long versionId) {
+        if (ObjectUtil.isNull(versionId)) {
             return null;
         }
 
-        FormVersion formVersion = formVersionService.getById(currentVersionId);
+        FormVersion formVersion = formVersionService.getById(versionId);
 
         if (ObjectUtil.isNull(formVersion)) {
-            throw new BusinessException(ResultCodeEnum.NOT_FOUND_ERROR, "当前版本不存在");
+            throw new BusinessException(ResultCodeEnum.NOT_FOUND_ERROR, "版本不存在");
         }
 
         return formVersion;
     }
 
-    private FormVersion createDraftVersion(FormDefinition formDefinition, Object schemaJson) {
-        return createDraftVersion(formDefinition, writeSchemaJson(schemaJson));
-    }
-
     /**
-     * 创建一个新的草稿版本。
-     * 版本号始终基于当前表单的最大版本号递增，保存不会覆盖历史版本。
+     * 创建一个新的发布版本。
+     * 版本号始终基于当前表单的最大版本号递增。
      *
-     * @param formDefinition 表单定义
+     * @param formId     表单id
      * @param schemaJson 已序列化的 schema 内容
-     * @return 新创建的草稿版本
+     * @return 新创建的发布版本
      */
-    private FormVersion createDraftVersion(FormDefinition formDefinition, String schemaJson) {
+    private FormVersion createPublishedVersion(Long formId, String schemaJson) {
         FormVersion latestVersion = formVersionService.lambdaQuery()
-                .eq(FormVersion::getFormId, formDefinition.getId())
+                .eq(FormVersion::getFormId, formId)
                 .orderByDesc(FormVersion::getVersionNo)
                 .last("limit 1")
                 .one();
@@ -252,120 +260,102 @@ public class FormDefinitionServiceImpl extends ServiceImpl<FormDefinitionMapper,
         int nextVersionNo = latestVersionNo + 1;
 
         FormVersion formVersion = new FormVersion();
-        formVersion.setFormId(formDefinition.getId());
+        formVersion.setFormId(formId);
         formVersion.setVersionNo(nextVersionNo);
         formVersion.setSchemaJson(schemaJson);
-        formVersion.setIsPublished(0);
-        formVersion.setPublishedAt(null);
+        formVersion.setPublishedAt(LocalDateTime.now());
         formVersionService.save(formVersion);
 
         return formVersion;
     }
 
     /**
-     * 判断当前编辑器内容是否已经对应当前发布版本。
-     * 只有“当前草稿存在、schema 未变化、且当前草稿本身就是发布版本”时才直接返回已发布结果。
+     * 使用草稿还是发布的正式版本
      *
-     * @param formDefinition 表单定义
-     * @param currentVersion 当前草稿版本
-     * @param nextSchemaJson 当前前端传入并序列化后的 schema
-     * @return 是否已是最新发布版本
+     * @param formDefinition   草稿
+     * @param publishedVersion 正式版本
+     * @return schema
      */
-    private boolean isCurrentVersionPublished(FormDefinition formDefinition, FormVersion currentVersion, String nextSchemaJson) {
-        return ObjectUtil.isNotNull(currentVersion)
-                && !hasSchemaChanged(currentVersion, nextSchemaJson)
-                && ObjectUtil.equals(formDefinition.getCurrentVersionId(), formDefinition.getPublishedVersionId());
-    }
-
-    /**
-     * 根据当前编辑器内容确定本次要发布的目标版本。
-     * 规则只有两种：
-     * 1. 没有草稿版本，或者 schema 相比当前草稿有变化：先创建新版本，再发布它。
-     * 2. schema 未变化但当前草稿尚未发布：直接发布当前草稿版本。
-     *
-     * @param formDefinition 表单定义
-     * @param currentVersion 当前草稿版本
-     * @param nextSchemaJson 当前前端传入并序列化后的 schema
-     * @return 本次应被发布的版本
-     */
-    private FormVersion resolvePublishTargetVersion(FormDefinition formDefinition, FormVersion currentVersion, String nextSchemaJson) {
-        if (ObjectUtil.isNull(currentVersion) || hasSchemaChanged(currentVersion, nextSchemaJson)) {
-            return createDraftVersion(formDefinition, nextSchemaJson);
+    private String resolveEditorSchemaJson(FormDefinition formDefinition, FormVersion publishedVersion) {
+        if (StrUtil.isNotBlank(formDefinition.getDraftSchemaJson())) {
+            return formDefinition.getDraftSchemaJson();
         }
 
-        return currentVersion;
+        if (ObjectUtil.isNotNull(publishedVersion)) {
+            return publishedVersion.getSchemaJson();
+        }
+
+        return null;
     }
 
     /**
-     * 当前前端 schema 与最新草稿 schema 是否发生变化。
+     * 当前前端 schema 与目标 schema 是否发生变化。
      *
-     * @param currentVersion 当前草稿版本
-     * @param nextSchemaJson 当前前端传入并序列化后的 schema
+     * @param currentSchemaJson 当前 schema
+     * @param nextSchemaJson    当前前端传入并序列化后的 schema
      * @return 是否发生变化
      */
-    private boolean hasSchemaChanged(FormVersion currentVersion, String nextSchemaJson) {
-        return !StrUtil.equals(currentVersion.getSchemaJson(), nextSchemaJson);
+    private boolean hasSchemaChanged(String currentSchemaJson, String nextSchemaJson) {
+        return !StrUtil.equals(currentSchemaJson, nextSchemaJson);
     }
 
     /**
-     * 将目标版本标记为已发布。
-     * 这里除了落库，也会把内存中的版本对象同步到最新状态，便于后续直接复用该对象组装返回值。
+     * 当前表单是否存在未发布草稿。
      *
-     * @param formVersion 目标版本
+     * @param draftSchemaJson  草稿 schema
+     * @param publishedVersion 当前发布版本
+     * @return 是否存在未发布草稿
      */
-    private void publishVersion(FormVersion formVersion) {
-        LocalDateTime publishedAt = LocalDateTime.now();
-        boolean success = formVersionService.lambdaUpdate()
-                .eq(FormVersion::getId, formVersion.getId())
-                .set(FormVersion::getIsPublished, 1)
-                .set(FormVersion::getPublishedAt, publishedAt)
-                .update();
-
-        if (!success) {
-            throw new BusinessException(ResultCodeEnum.UPDATE_ERROR, "发布版本失败");
+    private boolean hasUnpublishedDraft(String draftSchemaJson, FormVersion publishedVersion) {
+        if (StrUtil.isBlank(draftSchemaJson)) {
+            return false;
         }
 
-        formVersion.setIsPublished(1);
-        formVersion.setPublishedAt(publishedAt);
+        if (ObjectUtil.isNull(publishedVersion)) {
+            return true;
+        }
+
+        return hasSchemaChanged(publishedVersion.getSchemaJson(), draftSchemaJson);
     }
 
     /**
-     * 更新表单指针
-     * @param formId 表单id
-     * @param currentVersionId 当前最新编辑版本id
+     * 更新表单草稿与发布指针
+     *
+     * @param formId             表单id
+     * @param draftSchemaJson    当前草稿schema
      * @param publishedVersionId 当前发布版本id
      */
-    private void updateDefinitionVersionPointers(Long formId, Long currentVersionId, Long publishedVersionId) {
+    private void updateDefinitionDraft(Long formId, String draftSchemaJson, Long publishedVersionId) {
         boolean success = lambdaUpdate()
                 .eq(FormDefinition::getId, formId)
-                .set(FormDefinition::getCurrentVersionId, currentVersionId)
+                .set(FormDefinition::getDraftSchemaJson, draftSchemaJson)
                 .set(FormDefinition::getPublishedVersionId, publishedVersionId)
                 .update();
 
         if (!success) {
-            throw new BusinessException(ResultCodeEnum.UPDATE_ERROR, "更新表单版本指针失败");
+            throw new BusinessException(ResultCodeEnum.UPDATE_ERROR, "更新表单草稿失败");
         }
     }
 
     /**
      * 组装保存/发布结果。
      *
-     * @param formVersion 本次处理完成后的版本对象
-     * @param currentVersionId 当前编辑版本指针
-     * @param publishedVersionId 当前发布版本指针
-     * @param alreadyPublished 当前是否本来就是最新发布版本
+     * @param publishedVersionId  当前发布版本指针
+     * @param hasUnpublishedDraft 是否存在未发布草稿
+     * @param versionNo           本次发布版本号
+     * @param alreadyPublished    当前是否本来就是最新发布版本
      * @return 前端需要的最小版本结果
      */
     private FormDefinitionPersistVo buildPersistVo(
-            FormVersion formVersion,
-            Long currentVersionId,
             Long publishedVersionId,
+            boolean hasUnpublishedDraft,
+            Integer versionNo,
             boolean alreadyPublished
     ) {
         FormDefinitionPersistVo formDefinitionPersistVo = new FormDefinitionPersistVo();
-        formDefinitionPersistVo.setCurrentVersionId(currentVersionId);
         formDefinitionPersistVo.setPublishedVersionId(publishedVersionId);
-        formDefinitionPersistVo.setVersionNo(formVersion.getVersionNo());
+        formDefinitionPersistVo.setHasUnpublishedDraft(hasUnpublishedDraft);
+        formDefinitionPersistVo.setVersionNo(versionNo);
         formDefinitionPersistVo.setAlreadyPublished(alreadyPublished);
         return formDefinitionPersistVo;
     }

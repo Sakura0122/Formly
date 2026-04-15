@@ -38,11 +38,6 @@ public class FormVersion {
     private String schemaJson;
 
     /**
-     * 是否曾被发布
-     */
-    private Integer isPublished;
-
-    /**
      * 发布时间
      */
     private LocalDateTime publishedAt;

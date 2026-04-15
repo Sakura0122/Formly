@@ -69,10 +69,10 @@ export const useEditorStore = defineStore('editor', () => {
   const currentFormId = ref('')
   /** 当前表单名称 */
   const formName = ref('Formly 表单编辑器')
-  /** 当前编辑版本 ID */
-  const currentVersionId = ref<string | null>(null)
   /** 当前发布版本 ID */
   const publishedVersionId = ref<string | null>(null)
+  /** 是否存在未发布草稿 */
+  const hasUnpublishedDraft = ref(false)
   /** 是否存在未保存改动 */
   const dirty = ref(false)
   /** 撤销历史 */
@@ -264,8 +264,8 @@ export const useEditorStore = defineStore('editor', () => {
     table.value = cloneTableSnapshot(payload.currentSchema?.table ?? null)
     currentFormId.value = payload.id
     formName.value = payload.name
-    currentVersionId.value = payload.currentVersionId
     publishedVersionId.value = payload.publishedVersionId
+    hasUnpublishedDraft.value = payload.hasUnpublishedDraft
     cellClipboard.value = null
     dirty.value = false
     undoHistory.value = []
@@ -277,11 +277,11 @@ export const useEditorStore = defineStore('editor', () => {
    * 保存成功后同步版本指针并清理脏状态。
    */
   const markPersisted = (payload: {
-    currentVersionId: string | null
     publishedVersionId: string | null
+    hasUnpublishedDraft: boolean
   }) => {
-    currentVersionId.value = payload.currentVersionId
     publishedVersionId.value = payload.publishedVersionId
+    hasUnpublishedDraft.value = payload.hasUnpublishedDraft
     dirty.value = false
   }
 
@@ -292,8 +292,8 @@ export const useEditorStore = defineStore('editor', () => {
     table.value = null
     currentFormId.value = ''
     formName.value = 'Formly 表单编辑器'
-    currentVersionId.value = null
     publishedVersionId.value = null
+    hasUnpublishedDraft.value = false
     cellClipboard.value = null
     dirty.value = false
     undoHistory.value = []
@@ -1040,10 +1040,10 @@ export const useEditorStore = defineStore('editor', () => {
     copyActiveCell,
     createTable,
     currentFormId,
-    currentVersionId,
     dirty,
     executeContextCommand,
     formName,
+    hasUnpublishedDraft,
     hydrateEditor,
     getContextMenuItems,
     buildSchema,

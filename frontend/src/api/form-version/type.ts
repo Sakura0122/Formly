@@ -6,8 +6,8 @@ export type FormVersionPersistReq = {
 }
 
 export type FormVersionPersistResult = {
-  currentVersionId: FormEntityId | null
   publishedVersionId: FormEntityId | null
-  versionNo: number
+  hasUnpublishedDraft: boolean
+  versionNo: number | null
   alreadyPublished: boolean
 }

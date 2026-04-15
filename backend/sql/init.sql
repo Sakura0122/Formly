@@ -30,7 +30,7 @@ CREATE TABLE `form_definition` (
   `name` VARCHAR(100) NOT NULL COMMENT '表单名称',
   `form_key` VARCHAR(100) NOT NULL COMMENT '表单唯一业务标识',
   `description` VARCHAR(500) NOT NULL DEFAULT '' COMMENT '表单描述',
-  `current_version_id` BIGINT NULL COMMENT '当前最新编辑版本ID',
+  `draft_schema_json` JSON NULL COMMENT '当前草稿Schema',
   `published_version_id` BIGINT NULL COMMENT '当前已发布版本ID',
   `sort` INT NOT NULL DEFAULT 0 COMMENT '同级排序值，越小越靠前',
   `created_by` VARCHAR(64) NOT NULL DEFAULT '' COMMENT '创建人标识',
@@ -41,7 +41,6 @@ CREATE TABLE `form_definition` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_form_definition_form_key` (`form_key`),
   KEY `idx_form_definition_group_sort` (`group_id`, `sort`),
-  KEY `idx_form_definition_current_version` (`current_version_id`),
   KEY `idx_form_definition_published_version` (`published_version_id`),
   KEY `idx_form_definition_deleted_at` (`deleted_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='表单定义';
@@ -51,7 +50,6 @@ CREATE TABLE `form_version` (
   `form_id` BIGINT NOT NULL COMMENT '所属表单ID',
   `version_no` INT NOT NULL COMMENT '递增版本号',
   `schema_json` JSON NOT NULL COMMENT '整份编辑器Schema',
-  `is_published` TINYINT(1) NOT NULL DEFAULT 0 COMMENT '是否曾被发布',
   `published_at` DATETIME NULL DEFAULT NULL COMMENT '发布时间',
   `created_by` VARCHAR(64) NOT NULL DEFAULT '' COMMENT '创建人标识',
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',

@@ -22,8 +22,8 @@ export type FormDefinitionEditorDetail = {
   name: string
   formKey: string
   description: string
-  currentVersionId: FormEntityId | null
   publishedVersionId: FormEntityId | null
+  hasUnpublishedDraft: boolean
   sort: number | null
   currentSchema: EditorSchema | null
   createdAt: string

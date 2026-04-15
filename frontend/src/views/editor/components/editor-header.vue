@@ -10,7 +10,7 @@ import { useRouter } from 'vue-router'
 const router = useRouter()
 const editorStore = useEditorStore()
 
-const { dirty, canUndo, canRedo, currentFormId, currentVersionId, publishedVersionId, formName } =
+const { dirty, canUndo, canRedo, currentFormId, publishedVersionId, hasUnpublishedDraft, formName } =
   storeToRefs(editorStore)
 
 const statusType = computed(() => {
@@ -18,15 +18,11 @@ const statusType = computed(() => {
     return 'warning'
   }
 
-  if (!currentVersionId.value) {
-    return 'info'
-  }
-
-  if (publishedVersionId.value && currentVersionId.value !== publishedVersionId.value) {
+  if (hasUnpublishedDraft.value) {
     return 'warning'
   }
 
-  if (publishedVersionId.value && currentVersionId.value === publishedVersionId.value) {
+  if (publishedVersionId.value && !hasUnpublishedDraft.value) {
     return 'success'
   }
 
@@ -38,19 +34,19 @@ const statusLabel = computed(() => {
     return '未保存'
   }
 
-  if (!currentVersionId.value) {
-    return '未保存'
-  }
-
-  if (publishedVersionId.value && currentVersionId.value !== publishedVersionId.value) {
+  if (hasUnpublishedDraft.value) {
     return '有未发布改动'
   }
 
-  if (publishedVersionId.value && currentVersionId.value === publishedVersionId.value) {
+  if (publishedVersionId.value && !hasUnpublishedDraft.value) {
     return '已发布'
   }
 
-  return '草稿已保存'
+  if (editorStore.table) {
+    return '草稿已保存'
+  }
+
+  return '未保存'
 })
 
 const previewDisabled = computed(() => !editorStore.table)
@@ -85,10 +81,10 @@ const handleSave = async () => {
   })
 
   editorStore.markPersisted({
-    currentVersionId: res.currentVersionId,
     publishedVersionId: res.publishedVersionId,
+    hasUnpublishedDraft: res.hasUnpublishedDraft,
   })
-  ElMessage.success(`已保存为 ${formatVersionLabel(res.versionNo)}`)
+  ElMessage.success('草稿已保存')
 }
 
 // 保存并发布
@@ -99,13 +95,13 @@ const handlePublish = async () => {
     return
   }
 
-  const res= await publishFormVersionApi(currentFormId.value, {
+  const res = await publishFormVersionApi(currentFormId.value, {
     schemaJson: editorStore.buildSchema(),
   })
 
   editorStore.markPersisted({
-    currentVersionId: res.currentVersionId,
     publishedVersionId: res.publishedVersionId,
+    hasUnpublishedDraft: res.hasUnpublishedDraft,
   })
 
   if (res.alreadyPublished) {
@@ -113,7 +109,9 @@ const handlePublish = async () => {
     return
   }
 
-  ElMessage.success(`已保存并发布 ${formatVersionLabel(res.versionNo)}`)
+  const publishedMessage =
+    res.versionNo === null ? '已保存并发布' : `已保存并发布 ${formatVersionLabel(res.versionNo)}`
+  ElMessage.success(publishedMessage)
 }
 </script>
 

@@ -7,11 +7,11 @@ import lombok.Data;
 @Schema(description = "表单保存结果")
 public class FormDefinitionPersistVo {
 
-    @Schema(description = "当前编辑版本ID")
-    private Long currentVersionId;
-
     @Schema(description = "已发布版本ID")
     private Long publishedVersionId;
+
+    @Schema(description = "是否存在未发布草稿")
+    private Boolean hasUnpublishedDraft;
 
     @Schema(description = "版本号")
     private Integer versionNo;

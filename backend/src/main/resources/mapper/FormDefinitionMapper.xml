@@ -10,7 +10,7 @@
             <result property="name" column="name" />
             <result property="formKey" column="form_key" />
             <result property="description" column="description" />
-            <result property="currentVersionId" column="current_version_id" />
+            <result property="draftSchemaJson" column="draft_schema_json" />
             <result property="publishedVersionId" column="published_version_id" />
             <result property="sort" column="sort" />
             <result property="createdBy" column="created_by" />
@@ -21,7 +21,7 @@
     </resultMap>
 
     <sql id="Base_Column_List">
-        id,group_id,name,form_key,description,current_version_id,
+        id,group_id,name,form_key,description,draft_schema_json,
         published_version_id,sort,created_by,updated_by,created_at,
         updated_at,deleted_at
     </sql>
