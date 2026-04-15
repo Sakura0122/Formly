@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 
-import { EDITOR_TABLE_MIN_ROW_HEIGHT } from '@/constants/editor'
 import type { EditorCanvasCell, EditorCanvasTable, EditorFieldInstance, EditorFormPreviewMode } from '@/types/editor'
 import { getVisibleCells } from '@/views/editor/utils/table'
 import FormPreviewField from '@/components/form-preview/form-preview-field.vue'
@@ -50,59 +49,6 @@ watch(
   },
 )
 
-const estimateChoiceFieldHeight = (field: EditorFieldInstance) => {
-  const optionCount = Math.max(field.options.length, 1)
-
-  return optionCount * 16 + Math.max(optionCount - 1, 0) * 2 + 4
-}
-
-const estimateFieldHeight = (field: EditorFieldInstance) => {
-  switch (field.type) {
-    case 'text':
-      return 24
-    case 'image':
-      return 74
-    case 'textbox':
-    case 'number':
-    case 'date':
-      return 24
-    case 'radio':
-    case 'checkbox':
-      return estimateChoiceFieldHeight(field)
-    case 'upload':
-      return 30
-    case 'switch':
-      return 24
-    default:
-      return 32
-  }
-}
-
-const isCompactSingleField = (fieldList: EditorFieldInstance[]) => {
-  if (fieldList.length !== 1) {
-    return false
-  }
-
-  const field = fieldList[0]!
-
-  return ['text', 'textbox', 'number', 'date'].includes(field.type)
-}
-
-const estimateCellHeight = (fieldList: EditorFieldInstance[]) => {
-  if (!fieldList.length) {
-    return EDITOR_TABLE_MIN_ROW_HEIGHT
-  }
-
-  if (isCompactSingleField(fieldList)) {
-    return EDITOR_TABLE_MIN_ROW_HEIGHT
-  }
-
-  const contentHeight = fieldList.reduce((total, field) => {
-    return total + estimateFieldHeight(field)
-  }, 0)
-
-  return Math.max(EDITOR_TABLE_MIN_ROW_HEIGHT, contentHeight + Math.max(0, fieldList.length - 1) * 4 + 8)
-}
 
 const visibleCells = computed(() => {
   return getVisibleCells(props.table)
@@ -133,39 +79,13 @@ watch(
   },
 )
 
-const effectiveRowHeights = computed(() => {
-  const baseHeights = [...(props.table?.rowHeights ?? [])]
-
-  visibleCells.value.forEach((cell) => {
-    const estimatedHeight = estimateCellHeight(cell.fields)
-    const spanIndexes = Array.from({ length: cell.rowSpan }, (_, index) => cell.row - 1 + index)
-    const currentSpanHeight = spanIndexes.reduce((total, index) => {
-      return total + (baseHeights[index] ?? EDITOR_TABLE_MIN_ROW_HEIGHT)
-    }, 0)
-
-    if (estimatedHeight <= currentSpanHeight) {
-      return
-    }
-
-    const lastIndex = spanIndexes.at(-1)
-
-    if (lastIndex === undefined) {
-      return
-    }
-
-    baseHeights[lastIndex] =
-      (baseHeights[lastIndex] ?? EDITOR_TABLE_MIN_ROW_HEIGHT) + estimatedHeight - currentSpanHeight
-  })
-
-  return baseHeights
-})
-
 const gridTemplateColumns = computed(() => {
   return (props.table?.columnWidths ?? []).map((width) => `${width}px`).join(' ')
 })
 
+// 行高使用 minmax(用户设定行高, auto)，内容超出时由 CSS Grid 自动撑开
 const gridTemplateRows = computed(() => {
-  return effectiveRowHeights.value.map((height) => `minmax(${height}px, auto)`).join(' ')
+  return (props.table?.rowHeights ?? []).map((height) => `minmax(${height}px, auto)`).join(' ')
 })
 
 const tableWidth = computed(() => {
