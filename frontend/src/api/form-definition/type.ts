@@ -1,18 +1,5 @@
 import type { FormEntityId } from '@/api/form-group/type'
-
-export type FormDefinitionDetail = {
-  id: FormEntityId
-  groupId: FormEntityId | null
-  name: string
-  formKey: string
-  description: string
-  currentVersionId: FormEntityId | null
-  publishedVersionId: FormEntityId | null
-  sort: number | null
-  createdBy: string
-  createdAt: string
-  updatedAt: string
-}
+import type { EditorSchema } from '@/types/editor'
 
 export type FormDefinitionCreateReq = {
   groupId: FormEntityId | null
@@ -27,4 +14,18 @@ export type FormDefinitionUpdateReq = {
   name: string
   description?: string
   sort?: number
+}
+
+export type FormDefinitionEditorDetail = {
+  id: FormEntityId
+  groupId: FormEntityId | null
+  name: string
+  formKey: string
+  description: string
+  currentVersionId: FormEntityId | null
+  publishedVersionId: FormEntityId | null
+  sort: number | null
+  currentSchema: EditorSchema | null
+  createdAt: string
+  updatedAt: string
 }

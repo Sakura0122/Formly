@@ -5,7 +5,7 @@ import { computed, ref, useTemplateRef, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { formDefinitionApi } from '@/api/form-definition'
-import type { FormDefinitionDetail } from '@/api/form-definition/type'
+import type { FormDefinitionEditorDetail } from '@/api/form-definition/type'
 import { formGroupApi } from '@/api/form-group'
 import type { FormCatalogNode, FormCatalogNodeType, FormEntityId } from '@/api/form-group/type'
 import { useRequest } from '@/hooks/useRequest'
@@ -37,7 +37,7 @@ const catalogTree = ref<FormCatalogNode[]>([])
 const expandedGroupIds = ref<FormEntityId[]>([])
 const selectedNodeId = ref<FormEntityId | null>(null)
 const selectedNodeType = ref<FormCatalogNodeType | null>(null)
-const selectedFormDetail = ref<FormDefinitionDetail | null>(null)
+const selectedFormDetail = ref<FormDefinitionEditorDetail | null>(null)
 const treeRef = useTemplateRef('treeRef')
 
 const collectGroupIds = (nodes: FormCatalogNode[], result: FormEntityId[] = []) => {
@@ -153,7 +153,7 @@ const filterTreeNode = (keyword: string, data: unknown) => {
   return currentNode.name.toLowerCase().includes(keyword.trim().toLowerCase())
 }
 
-const { loading: formDetailLoading, run: fetchFormDetail } = useRequest(formDefinitionApi.getDetail)
+const { loading: formDetailLoading, run: fetchFormDetail } = useRequest(formDefinitionApi.getEditor)
 const getFormDetail = async (formId: FormEntityId) => {
   if (selectedFormDetail.value?.id === formId) {
     return selectedFormDetail.value

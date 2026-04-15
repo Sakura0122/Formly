@@ -3,6 +3,7 @@ import { computed, ref, shallowRef } from 'vue'
 
 import {
   EDITOR_DEFAULT_OPTIONS,
+  EDITOR_SCHEMA_VERSION,
   EDITOR_TABLE_DEFAULT_COLUMN_WIDTH,
   EDITOR_TABLE_DEFAULT_ROW_HEIGHT,
   EDITOR_TABLE_LIMITS,
@@ -29,6 +30,7 @@ import type {
   EditorRemoveFieldPayload,
   EditorResizeColumnPayload,
   EditorResizeRowPayload,
+  EditorSchema,
   EditorSelectFieldPayload,
 } from '@/types/editor'
 import {
@@ -45,6 +47,7 @@ import {
   splitMergedCell,
   validateMergeSelection,
 } from '@/views/editor/utils/table'
+import type { FormDefinitionEditorDetail } from '@/api/form-definition/type'
 
 /**
  * 编辑器唯一领域状态入口。
@@ -62,6 +65,14 @@ export const useEditorStore = defineStore('editor', () => {
   const selectionAnchorCellId = ref('')
   /** 页面内剪贴板，仅保存组件配置 */
   const cellClipboard = shallowRef<EditorCellClipboard | null>(null)
+  /** 当前表单 ID */
+  const currentFormId = ref('')
+  /** 当前表单名称 */
+  const formName = ref('Formly 表单编辑器')
+  /** 当前编辑版本 ID */
+  const currentVersionId = ref<string | null>(null)
+  /** 当前发布版本 ID */
+  const publishedVersionId = ref<string | null>(null)
   /** 是否存在未保存改动 */
   const dirty = ref(false)
   /** 撤销历史 */
@@ -233,6 +244,60 @@ export const useEditorStore = defineStore('editor', () => {
         EDITOR_TABLE_DEFAULT_ROW_HEIGHT,
       ),
     )
+    resetSelection()
+  }
+
+  /**
+   * 将当前内存态序列化为可落库的 schema。
+   */
+  const buildSchema = (): EditorSchema => {
+    return {
+      schemaVersion: EDITOR_SCHEMA_VERSION,
+      table: cloneTableSnapshot(table.value),
+    }
+  }
+
+  /**
+   * 用后端返回的 schema 重置编辑器现场。
+   */
+  const hydrateEditor = (payload: FormDefinitionEditorDetail) => {
+    table.value = cloneTableSnapshot(payload.currentSchema?.table ?? null)
+    currentFormId.value = payload.id
+    formName.value = payload.name
+    currentVersionId.value = payload.currentVersionId
+    publishedVersionId.value = payload.publishedVersionId
+    cellClipboard.value = null
+    dirty.value = false
+    undoHistory.value = []
+    redoHistory.value = []
+    resetSelection()
+  }
+
+  /**
+   * 保存成功后同步版本指针并清理脏状态。
+   */
+  const markPersisted = (payload: {
+    currentVersionId: string | null
+    publishedVersionId: string | null
+  }) => {
+    currentVersionId.value = payload.currentVersionId
+    publishedVersionId.value = payload.publishedVersionId
+    dirty.value = false
+  }
+
+  /**
+   * 离开编辑页或切换表单时重置全部状态，避免串表。
+   */
+  const resetEditorSession = () => {
+    table.value = null
+    currentFormId.value = ''
+    formName.value = 'Formly 表单编辑器'
+    currentVersionId.value = null
+    publishedVersionId.value = null
+    cellClipboard.value = null
+    dirty.value = false
+    undoHistory.value = []
+    redoHistory.value = []
     resetSelection()
   }
 
@@ -974,16 +1039,24 @@ export const useEditorStore = defineStore('editor', () => {
     commitTableChange,
     copyActiveCell,
     createTable,
+    currentFormId,
+    currentVersionId,
     dirty,
     executeContextCommand,
+    formName,
+    hydrateEditor,
     getContextMenuItems,
+    buildSchema,
+    markPersisted,
     mergeValidation,
     pasteToActiveCell,
     placeItem,
+    publishedVersionId,
     redo,
     removeActiveField,
     removeField,
     removeActiveFieldOption,
+    resetEditorSession,
     resetSelection,
     resizeColumn,
     resizeRow,

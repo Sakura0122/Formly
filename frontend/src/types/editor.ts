@@ -83,6 +83,11 @@ export interface EditorCanvasTable {
   rowHeights: number[]
 }
 
+export interface EditorSchema {
+  schemaVersion: number
+  table: EditorCanvasTable | null
+}
+
 export interface EditorHistorySnapshot {
   table: EditorCanvasTable | null
 }

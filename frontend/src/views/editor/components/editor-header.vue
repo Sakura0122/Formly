@@ -1,18 +1,62 @@
 <script setup lang="ts">
+import { formVersionApi } from '@/api/form-version'
+import { useRequest } from '@/hooks/useRequest'
 import { useEditorStore } from '@/stores/editor'
 import { Icon } from '@iconify/vue'
 import { storeToRefs } from 'pinia'
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
 const editorStore = useEditorStore()
 
-const { dirty, canUndo, canRedo } = storeToRefs(editorStore)
+const { dirty, canUndo, canRedo, currentFormId, currentVersionId, publishedVersionId, formName } =
+  storeToRefs(editorStore)
 
-const statusType = computed(() => (dirty.value ? 'warning' : 'success'))
-const statusLabel = computed(() => (dirty.value ? '未保存' : '草稿'))
+const statusType = computed(() => {
+  if (dirty.value) {
+    return 'warning'
+  }
+
+  if (!currentVersionId.value) {
+    return 'info'
+  }
+
+  if (publishedVersionId.value && currentVersionId.value !== publishedVersionId.value) {
+    return 'warning'
+  }
+
+  if (publishedVersionId.value && currentVersionId.value === publishedVersionId.value) {
+    return 'success'
+  }
+
+  return 'info'
+})
+
+const statusLabel = computed(() => {
+  if (dirty.value) {
+    return '未保存'
+  }
+
+  if (!currentVersionId.value) {
+    return '未保存'
+  }
+
+  if (publishedVersionId.value && currentVersionId.value !== publishedVersionId.value) {
+    return '有未发布改动'
+  }
+
+  if (publishedVersionId.value && currentVersionId.value === publishedVersionId.value) {
+    return '已发布'
+  }
+
+  return '草稿已保存'
+})
+
 const previewDisabled = computed(() => !editorStore.table)
+const saveDisabled = computed(() => !currentFormId.value || !editorStore.table || !dirty.value)
+const publishDisabled = computed(() => !currentFormId.value || !editorStore.table)
+const formatVersionLabel = (versionNo: number) => `V${versionNo}`
 
 // 返回
 const handleBack = () => {
@@ -29,21 +73,47 @@ const handlePreview = () => {
 }
 
 // 保存
-const saveLoading = ref(false)
+const { loading: saveLoading, run: saveFormVersionApi } = useRequest(formVersionApi.save)
 const handleSave = async () => {
-  saveLoading.value = true
-  await Promise.resolve()
-  saveLoading.value = false
-  ElMessage.success('保存事件已输出，等待后续接入真实逻辑')
+  if (!currentFormId.value || !editorStore.table) {
+    ElMessage.warning('当前表单还不能保存')
+    return
+  }
+
+  const res = await saveFormVersionApi(currentFormId.value, {
+    schemaJson: editorStore.buildSchema(),
+  })
+
+  editorStore.markPersisted({
+    currentVersionId: res.currentVersionId,
+    publishedVersionId: res.publishedVersionId,
+  })
+  ElMessage.success(`已保存为 ${formatVersionLabel(res.versionNo)}`)
 }
 
-// 预览
-const publishLoading = ref(false)
+// 保存并发布
+const { loading: publishLoading, run: publishFormVersionApi } = useRequest(formVersionApi.publish)
 const handlePublish = async () => {
-  publishLoading.value = true
-  await Promise.resolve()
-  publishLoading.value = false
-  ElMessage.success('发布事件已输出，等待后续接入真实逻辑')
+  if (!currentFormId.value || !editorStore.table) {
+    ElMessage.warning('当前表单还不能发布')
+    return
+  }
+
+  const res= await publishFormVersionApi(currentFormId.value, {
+    schemaJson: editorStore.buildSchema(),
+  })
+
+  editorStore.markPersisted({
+    currentVersionId: res.currentVersionId,
+    publishedVersionId: res.publishedVersionId,
+  })
+
+  if (res.alreadyPublished) {
+    ElMessage.info('当前已是最新发布版本')
+    return
+  }
+
+  ElMessage.success(`已保存并发布 ${formatVersionLabel(res.versionNo)}`)
 }
 </script>
 
@@ -57,7 +127,7 @@ const handlePublish = async () => {
       </el-button>
       <div class="min-w-0">
         <div class="flex items-center gap-3">
-          <h1 class="truncate text-lg font-semibold text-slate-900">Formly 表单编辑器</h1>
+          <h1 class="truncate text-lg font-semibold text-slate-900">{{ formName }}</h1>
           <el-tag :type="statusType" effect="light" round>
             {{ statusLabel }}
           </el-tag>
@@ -99,13 +169,13 @@ const handlePublish = async () => {
         <Icon class="mr-1 text-base" icon="solar:eye-linear" />
         预览
       </el-button>
-      <el-button :loading="saveLoading" type="primary" plain @click="handleSave">
+      <el-button :disabled="saveDisabled" :loading="saveLoading" type="primary" plain @click="handleSave">
         <Icon class="mr-1 text-base" icon="solar:diskette-linear" />
         保存
       </el-button>
-      <el-button :loading="publishLoading" type="primary" @click="handlePublish">
+      <el-button :disabled="publishDisabled" :loading="publishLoading" type="primary" @click="handlePublish">
         <Icon class="mr-1 text-base" icon="solar:cloud-upload-linear" />
-        发布
+        保存并发布
       </el-button>
     </div>
   </header>

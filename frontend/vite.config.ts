@@ -20,7 +20,9 @@ export default defineConfig(({ mode }) => {
       // vueDevTools(),
       tailwindcss(),
       AutoImport({
-        resolvers: [ElementPlusResolver()],
+        resolvers: [ElementPlusResolver({
+            importStyle: 'sass',
+          })],
       }),
       Components({
         resolvers: [

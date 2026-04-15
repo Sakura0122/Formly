@@ -1,9 +1,11 @@
 <script setup lang="ts">
+import { formDefinitionApi } from '@/api/form-definition'
+import { useRequest } from '@/hooks/useRequest'
 import { useEditorStore } from '@/stores/editor'
 import type {
   EditorCanvasContextMenuPayload,
   EditorContextMenuActionPayload,
-  EditorContextMenuItem
+  EditorContextMenuItem,
 } from '@/types/editor'
 import EditorCanvas from '@/views/editor/components/editor-canvas.vue'
 import EditorComponentPalette from '@/views/editor/components/editor-component-palette.vue'
@@ -12,13 +14,15 @@ import EditorContextMenu from '@/views/editor/components/editor-context-menu.vue
 import EditorCreateTableDialog from '@/views/editor/components/editor-create-table-dialog.vue'
 import EditorHeader from '@/views/editor/components/editor-header.vue'
 import { useEventListener } from '@vueuse/core'
-import { useTemplateRef } from 'vue'
+import { onBeforeUnmount, ref, useTemplateRef, watch } from 'vue'
+import { useRoute } from 'vue-router'
 
 defineOptions({
   name: 'EditorPage',
 })
 
 const editorStore = useEditorStore()
+const route = useRoute()
 
 const tableDialogRef = useTemplateRef('tableDialogRef')
 const openTableDialog = (mode: 'create' | 'rebuild') => {
@@ -108,10 +112,38 @@ const handleContextCommand = (payload: EditorContextMenuActionPayload) => {
 
   editorStore.executeContextCommand(payload)
 }
+
+const { loading: pageLoading, run: getEditorApi } = useRequest(formDefinitionApi.getEditor)
+const loadEditor = async (formId: string) => {
+  if (!formId) {
+    editorStore.resetEditorSession()
+    return
+  }
+
+  pageLoading.value = true
+  editorStore.resetEditorSession()
+
+  const editorDetail = await getEditorApi(formId)
+  editorStore.hydrateEditor(editorDetail)
+}
+
+watch(
+  () => route.query.formId,
+  (formId) => {
+    loadEditor(formId as string)
+  },
+  {
+    immediate: true,
+  },
+)
+
+onBeforeUnmount(() => {
+  editorStore.resetEditorSession()
+})
 </script>
 
 <template>
-  <div class="flex h-screen flex-col overflow-hidden bg-slate-100">
+  <div v-loading="pageLoading" class="flex h-screen flex-col overflow-hidden bg-slate-100">
     <EditorHeader />
 
     <main class="flex min-h-0 flex-1 gap-4 overflow-hidden p-4 lg:p-5">
