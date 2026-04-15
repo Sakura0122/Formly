@@ -34,7 +34,6 @@ export type FormDefinitionFormDetail = {
   id: FormEntityId
   name: string
   formKey: string
-  publishedVersionId: FormEntityId | null
   publishedVersionNo: number | null
   schema: EditorSchema | null
   updatedAt: string

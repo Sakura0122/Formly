@@ -144,7 +144,7 @@ const groupOptions = computed(() => flattenGroupOptions(catalogTree.value))
 const hasSelectedForm = computed(() => selectedNodeType.value === 'form' && Boolean(selectedFormDetail.value))
 const publishedPreviewTable = computed(() => selectedFormDetail.value?.schema ?? null)
 const hasPublishedPreview = computed(() => {
-  return Boolean(selectedFormDetail.value?.publishedVersionId && publishedPreviewTable.value)
+  return Boolean(selectedFormDetail.value?.publishedVersionNo && publishedPreviewTable.value)
 })
 const currentNodeKey = computed(() => selectedNodeId.value ?? undefined)
 
