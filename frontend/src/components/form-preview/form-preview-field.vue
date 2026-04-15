@@ -172,7 +172,7 @@ const handleUploadRemove = (_file: UploadFile, fileList: UploadUserFile[]) => {
 
   <div v-else-if="field.type === 'textbox'">
     <div v-if="isReadonly" class="flex min-h-6 w-full min-w-0 items-center px-2" :class="justifyClass">
-      <div class="w-full break-words text-xs leading-5 text-slate-400" :class="textAlignClass">
+      <div class="w-full wrap-break-word text-xs leading-5 text-slate-400" :class="textAlignClass">
         {{ inlineCellPlaceholderText }}
       </div>
     </div>
@@ -194,7 +194,7 @@ const handleUploadRemove = (_file: UploadFile, fileList: UploadUserFile[]) => {
       class="flex min-h-6 w-full min-w-0 items-center px-2 tabular-nums"
       :class="justifyClass"
     >
-      <div class="w-full break-words text-xs leading-5 text-slate-400" :class="textAlignClass">
+      <div class="w-full wrap-break-word text-xs leading-5 text-slate-400" :class="textAlignClass">
         {{ inlineCellPlaceholderText }}
       </div>
     </div>
@@ -228,7 +228,11 @@ const handleUploadRemove = (_file: UploadFile, fileList: UploadUserFile[]) => {
         <span class="min-w-0 truncate">{{ option.label }}</span>
       </div>
     </div>
-    <el-radio-group v-else v-model="textInputValue" class="flex min-w-0 max-w-full flex-col items-start gap-1 py-0">
+    <el-radio-group
+      v-else
+      v-model="textInputValue"
+      class="preview-choice-group flex min-w-0 max-w-full flex-col items-start gap-1 py-0"
+    >
       <el-radio v-for="option in previewOptions" :key="option.value" :value="option.value">
         {{ option.label }}
       </el-radio>
@@ -255,7 +259,7 @@ const handleUploadRemove = (_file: UploadFile, fileList: UploadUserFile[]) => {
     <el-checkbox-group
       v-else
       v-model="checkboxValue"
-      class="flex min-w-0 max-w-full flex-col items-start gap-1 py-0"
+      class="preview-choice-group flex min-w-0 max-w-full flex-col items-start gap-1 py-0"
     >
       <el-checkbox v-for="option in previewOptions" :key="option.value" :value="option.value">
         {{ option.label }}
@@ -263,19 +267,20 @@ const handleUploadRemove = (_file: UploadFile, fileList: UploadUserFile[]) => {
     </el-checkbox-group>
   </div>
 
-  <el-select
-    v-else-if="field.type === 'select'"
-    v-model="textInputValue"
-    class="w-full min-w-0"
-    :class="isInteractive ? ['preview-cell-control', previewControlAlignClass] : ''"
-    :disabled="isReadonly"
-    :placeholder="isReadonly ? selectPlaceholderText : inlineCellPlaceholderText"
-    size="small"
-    style="width: 100%"
-    :style="isInteractive ? previewControlStyle : undefined"
-  >
-    <el-option v-for="option in previewOptions" :key="option.value" :label="option.label" :value="option.value" />
-  </el-select>
+  <div v-else-if="field.type === 'select'" class="preview-select-root flex h-full w-full items-center">
+    <el-select
+      v-model="textInputValue"
+      class="w-full min-w-0"
+      :class="isInteractive ? ['preview-cell-control', 'preview-select-control', previewControlAlignClass] : ''"
+      :disabled="isReadonly"
+      :placeholder="isReadonly ? selectPlaceholderText : inlineCellPlaceholderText"
+      size="small"
+      style="width: 100%"
+      :style="isInteractive ? previewControlStyle : undefined"
+    >
+      <el-option v-for="option in previewOptions" :key="option.value" :label="option.label" :value="option.value" />
+    </el-select>
+  </div>
 
   <div v-else-if="field.type === 'date'">
     <div v-if="isReadonly" class="flex h-6 w-full min-w-0 items-center px-2">
@@ -307,8 +312,9 @@ const handleUploadRemove = (_file: UploadFile, fileList: UploadUserFile[]) => {
     />
   </div>
 
-  <div v-else class="flex w-full" :class="justifyClass">
+  <div v-else class="flex w-full items-center" :class="justifyClass">
     <el-upload
+      class="preview-upload-control"
       action="#"
       :auto-upload="false"
       :disabled="isReadonly"
@@ -385,5 +391,60 @@ const handleUploadRemove = (_file: UploadFile, fileList: UploadUserFile[]) => {
 .preview-cell-control-right :deep(.el-select__selected-item),
 .preview-cell-control-right :deep(.el-select__placeholder) {
   margin-left: auto;
+}
+
+.preview-choice-group :deep(.el-radio),
+.preview-choice-group :deep(.el-checkbox) {
+  width: 100%;
+  height: 24px;
+  margin-right: 0;
+  justify-content: flex-start;
+}
+
+.preview-choice-group :deep(.el-radio__label),
+.preview-choice-group :deep(.el-checkbox__label) {
+  min-width: 0;
+  padding-left: 6px;
+}
+
+.preview-select-control :deep(.el-select__wrapper) {
+  width: 100%;
+  gap: 2px;
+  justify-content: flex-start;
+}
+
+.preview-select-root :deep(.el-select) {
+  display: block;
+  width: 100%;
+}
+
+.preview-select-control :deep(.el-select__selection) {
+  flex: 1;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.preview-select-control :deep(.el-select__selected-item),
+.preview-select-control :deep(.el-select__placeholder) {
+  max-width: 100%;
+}
+
+.preview-select-control :deep(.el-select__placeholder) {
+  position: static;
+  width: auto;
+  transform: none;
+}
+
+.preview-upload-control :deep(.el-upload) {
+  display: flex;
+  justify-content: center;
+}
+
+.preview-upload-control :deep(.el-upload-list) {
+  margin: 0;
+}
+
+.preview-upload-control :deep(.el-upload-list:empty) {
+  display: none;
 }
 </style>
