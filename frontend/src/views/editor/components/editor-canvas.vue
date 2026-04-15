@@ -213,7 +213,7 @@ const gridTemplateColumns = computed(() => {
 
 // 25px 25px 25px 25px
 const gridTemplateRows = computed(() => {
-  return `${EDITOR_TABLE_HEADER_HEIGHT}px ${rowHeaders.value.map((row) => `${row.height}px`).join(' ')}`
+  return `${EDITOR_TABLE_HEADER_HEIGHT}px ${rowHeaders.value.map((row) => `minmax(${row.height}px, auto)`).join(' ')}`
 })
 
 const createSingleSelection = (cellId: string): EditorCanvasSelectionPayload => {

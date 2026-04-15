@@ -128,7 +128,7 @@ const gridTemplateColumns = computed(() => {
 })
 
 const gridTemplateRows = computed(() => {
-  return effectiveRowHeights.value.map((height) => `${height}px`).join(' ')
+  return effectiveRowHeights.value.map((height) => `minmax(${height}px, auto)`).join(' ')
 })
 
 const tableWidth = computed(() => {

@@ -71,8 +71,8 @@ const justifyClass = computed(() => {
 </script>
 
 <template>
-  <div v-if="field.type === 'text'" class="flex h-6 w-full min-w-0 items-center px-2" :class="justifyClass">
-    <div class="w-full truncate text-xs leading-5 text-slate-700" :class="textAlignClass">
+  <div v-if="field.type === 'text'" class="flex min-h-6 w-full min-w-0 items-center px-2" :class="justifyClass">
+    <div class="w-full wrap-break-word text-xs leading-5 text-slate-700" :class="textAlignClass">
       {{ textContent }}
     </div>
   </div>
@@ -93,18 +93,18 @@ const justifyClass = computed(() => {
     </div>
   </div>
 
-  <div v-else-if="field.type === 'textbox'" class="flex h-6 w-full min-w-0 items-center px-2" :class="justifyClass">
-    <div class="w-full truncate text-xs leading-5 text-slate-400" :class="textAlignClass">
+  <div v-else-if="field.type === 'textbox'" class="flex min-h-6 w-full min-w-0 items-center px-2" :class="justifyClass">
+    <div class="w-full break-words text-xs leading-5 text-slate-400" :class="textAlignClass">
       {{ inlineCellPlaceholderText }}
     </div>
   </div>
 
   <div
     v-else-if="field.type === 'number'"
-    class="flex h-6 w-full min-w-0 items-center px-2 tabular-nums"
+    class="flex min-h-6 w-full min-w-0 items-center px-2 tabular-nums"
     :class="justifyClass"
   >
-    <div class="w-full truncate text-xs leading-5 text-slate-400" :class="textAlignClass">
+    <div class="w-full break-words text-xs leading-5 text-slate-400" :class="textAlignClass">
       {{ inlineCellPlaceholderText }}
     </div>
   </div>
