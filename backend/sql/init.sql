@@ -50,7 +50,6 @@ CREATE TABLE `form_version` (
   `id` BIGINT NOT NULL COMMENT '版本ID',
   `form_id` BIGINT NOT NULL COMMENT '所属表单ID',
   `version_no` INT NOT NULL COMMENT '递增版本号',
-  `version_label` VARCHAR(32) NOT NULL COMMENT '版本标签，如V1',
   `schema_json` JSON NOT NULL COMMENT '整份编辑器Schema',
   `is_published` TINYINT(1) NOT NULL DEFAULT 0 COMMENT '是否曾被发布',
   `published_at` DATETIME NULL DEFAULT NULL COMMENT '发布时间',

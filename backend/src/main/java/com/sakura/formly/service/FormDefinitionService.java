@@ -5,9 +5,11 @@ import com.baomidou.mybatisplus.extension.service.IService;
 import com.sakura.formly.common.PageVo;
 import com.sakura.formly.model.dto.formdefinition.FormDefinitionCreateReq;
 import com.sakura.formly.model.dto.formdefinition.FormDefinitionPageReq;
+import com.sakura.formly.model.dto.formdefinition.FormSchemaReq;
 import com.sakura.formly.model.dto.formdefinition.FormDefinitionUpdateReq;
-import com.sakura.formly.model.vo.formdefinition.FormDefinitionDetailVo;
+import com.sakura.formly.model.vo.formdefinition.FormDefinitionEditorVo;
 import com.sakura.formly.model.vo.formdefinition.FormDefinitionListVo;
+import com.sakura.formly.model.vo.formdefinition.FormDefinitionPersistVo;
 import com.sakura.formly.model.vo.formdefinition.FormSimpleVo;
 
 import java.util.List;
@@ -23,9 +25,13 @@ public interface FormDefinitionService extends IService<FormDefinition> {
 
     void updateFormDefinition(Long id, FormDefinitionUpdateReq request);
 
-    FormDefinitionDetailVo getFormDefinitionDetail(Long id);
+    FormDefinitionEditorVo getFormEditorDetail(Long id);
 
     PageVo<FormDefinitionListVo> pageFormDefinitions(FormDefinitionPageReq request);
+
+    FormDefinitionPersistVo saveFormSchema(Long id, FormSchemaReq request);
+
+    FormDefinitionPersistVo publishFormSchema(Long id, FormSchemaReq request);
 
     void deleteFormDefinition(Long id);
 

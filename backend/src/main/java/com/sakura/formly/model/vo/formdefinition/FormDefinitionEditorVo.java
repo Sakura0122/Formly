@@ -5,8 +5,8 @@ import java.time.LocalDateTime;
 import lombok.Data;
 
 @Data
-@Schema(description = "表单定义详情")
-public class FormDefinitionDetailVo {
+@Schema(description = "表单编辑器初始化数据")
+public class FormDefinitionEditorVo {
 
     @Schema(description = "表单ID")
     private Long id;
@@ -32,8 +32,8 @@ public class FormDefinitionDetailVo {
     @Schema(description = "排序值")
     private Integer sort;
 
-    @Schema(description = "创建人")
-    private String createdBy;
+    @Schema(description = "当前 schema")
+    private Object currentSchema;
 
     @Schema(description = "创建时间")
     private LocalDateTime createdAt;

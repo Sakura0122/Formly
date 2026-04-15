@@ -33,14 +33,9 @@ public class FormVersion {
     private Integer versionNo;
 
     /**
-     * 版本标签，如V1
-     */
-    private String versionLabel;
-
-    /**
      * 整份编辑器Schema
      */
-    private Object schemaJson;
+    private String schemaJson;
 
     /**
      * 是否曾被发布
