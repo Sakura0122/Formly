@@ -328,123 +328,139 @@ const handleUploadRemove = (_file: UploadFile, fileList: UploadUserFile[]) => {
   </div>
 </template>
 
-<style scoped>
-.preview-cell-control :deep(.el-input__wrapper),
-.preview-cell-control :deep(.el-select__wrapper),
-.preview-cell-control :deep(.el-date-editor.el-input__wrapper),
-.preview-cell-control :deep(.el-date-editor .el-input__wrapper) {
-  box-shadow: none;
-  background-color: transparent;
-  border-radius: 0;
-  min-height: 24px;
-  padding-inline: 0;
+<style scoped lang="scss">
+.preview-cell-control {
+  :deep(.el-input__wrapper),
+  :deep(.el-select__wrapper),
+  :deep(.el-date-editor.el-input__wrapper),
+  :deep(.el-date-editor .el-input__wrapper) {
+    box-shadow: none;
+    background-color: transparent;
+    border-radius: 0;
+    min-height: 24px;
+    padding-inline: 0;
+  }
+
+  :deep(.el-input__wrapper:hover),
+  :deep(.el-input__wrapper.is-focus),
+  :deep(.el-select__wrapper.is-hovering:not(.is-focused)),
+  :deep(.el-select__wrapper.is-focused),
+  :deep(.el-date-editor.el-input__wrapper:hover),
+  :deep(.el-date-editor.is-focus .el-input__wrapper) {
+    box-shadow: none;
+  }
+
+  :deep(.el-input__inner),
+  :deep(.el-select__selected-item),
+  :deep(.el-select__placeholder),
+  :deep(.el-date-editor .el-input__inner) {
+    color: #334155;
+  }
+
+  &-left {
+    :deep(.el-input__inner),
+    :deep(.el-date-editor .el-input__inner) {
+      text-align: left;
+    }
+
+    :deep(.el-select__selection) {
+      justify-content: flex-start;
+    }
+  }
+
+  &-center {
+    :deep(.el-input__inner),
+    :deep(.el-date-editor .el-input__inner) {
+      text-align: center;
+    }
+
+    :deep(.el-select__selection) {
+      justify-content: center;
+    }
+
+    :deep(.el-select__selected-item),
+    :deep(.el-select__placeholder) {
+      margin-inline: auto;
+    }
+  }
+
+  &-right {
+    :deep(.el-input__inner),
+    :deep(.el-date-editor .el-input__inner) {
+      text-align: right;
+    }
+
+    :deep(.el-select__selection) {
+      justify-content: flex-end;
+    }
+
+    :deep(.el-select__selected-item),
+    :deep(.el-select__placeholder) {
+      margin-left: auto;
+    }
+  }
 }
 
-.preview-cell-control :deep(.el-input__wrapper:hover),
-.preview-cell-control :deep(.el-input__wrapper.is-focus),
-.preview-cell-control :deep(.el-select__wrapper.is-hovering:not(.is-focused)),
-.preview-cell-control :deep(.el-select__wrapper.is-focused),
-.preview-cell-control :deep(.el-date-editor.el-input__wrapper:hover),
-.preview-cell-control :deep(.el-date-editor.is-focus .el-input__wrapper) {
-  box-shadow: none;
+.preview-choice-group {
+  :deep(.el-radio),
+  :deep(.el-checkbox) {
+    width: 100%;
+    height: 24px;
+    margin-right: 0;
+    justify-content: flex-start;
+  }
+
+  :deep(.el-radio__label),
+  :deep(.el-checkbox__label) {
+    min-width: 0;
+    padding-left: 6px;
+  }
 }
 
-.preview-cell-control :deep(.el-input__inner),
-.preview-cell-control :deep(.el-select__selected-item),
-.preview-cell-control :deep(.el-select__placeholder),
-.preview-cell-control :deep(.el-date-editor .el-input__inner) {
-  color: #334155;
+.preview-select-root {
+  :deep(.el-select) {
+    display: block;
+    width: 100%;
+  }
 }
 
-.preview-cell-control-left :deep(.el-input__inner),
-.preview-cell-control-left :deep(.el-date-editor .el-input__inner) {
-  text-align: left;
+.preview-select-control {
+  :deep(.el-select__wrapper) {
+    width: 100%;
+    gap: 2px;
+    justify-content: flex-start;
+  }
+
+  :deep(.el-select__selection) {
+    flex: 1;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  :deep(.el-select__selected-item),
+  :deep(.el-select__placeholder) {
+    max-width: 100%;
+  }
+
+  :deep(.el-select__placeholder) {
+    position: static;
+    width: auto;
+    transform: none;
+  }
 }
 
-.preview-cell-control-center :deep(.el-input__inner),
-.preview-cell-control-center :deep(.el-date-editor .el-input__inner) {
-  text-align: center;
-}
+.preview-upload-control {
+  :deep(.el-upload) {
+    display: flex;
+    justify-content: center;
+  }
 
-.preview-cell-control-right :deep(.el-input__inner),
-.preview-cell-control-right :deep(.el-date-editor .el-input__inner) {
-  text-align: right;
-}
+  :deep(.el-upload-list) {
+    margin: 0;
+  }
 
-.preview-cell-control-left :deep(.el-select__selection) {
-  justify-content: flex-start;
-}
-
-.preview-cell-control-center :deep(.el-select__selection) {
-  justify-content: center;
-}
-
-.preview-cell-control-right :deep(.el-select__selection) {
-  justify-content: flex-end;
-}
-
-.preview-cell-control-center :deep(.el-select__selected-item),
-.preview-cell-control-center :deep(.el-select__placeholder) {
-  margin-inline: auto;
-}
-
-.preview-cell-control-right :deep(.el-select__selected-item),
-.preview-cell-control-right :deep(.el-select__placeholder) {
-  margin-left: auto;
-}
-
-.preview-choice-group :deep(.el-radio),
-.preview-choice-group :deep(.el-checkbox) {
-  width: 100%;
-  height: 24px;
-  margin-right: 0;
-  justify-content: flex-start;
-}
-
-.preview-choice-group :deep(.el-radio__label),
-.preview-choice-group :deep(.el-checkbox__label) {
-  min-width: 0;
-  padding-left: 6px;
-}
-
-.preview-select-control :deep(.el-select__wrapper) {
-  width: 100%;
-  gap: 2px;
-  justify-content: flex-start;
-}
-
-.preview-select-root :deep(.el-select) {
-  display: block;
-  width: 100%;
-}
-
-.preview-select-control :deep(.el-select__selection) {
-  flex: 1;
-  min-width: 0;
-  max-width: 100%;
-}
-
-.preview-select-control :deep(.el-select__selected-item),
-.preview-select-control :deep(.el-select__placeholder) {
-  max-width: 100%;
-}
-
-.preview-select-control :deep(.el-select__placeholder) {
-  position: static;
-  width: auto;
-  transform: none;
-}
-
-.preview-upload-control :deep(.el-upload) {
-  display: flex;
-  justify-content: center;
-}
-
-.preview-upload-control :deep(.el-upload-list) {
-  margin: 0;
-}
-
-.preview-upload-control :deep(.el-upload-list:empty) {
-  display: none;
+  :deep(.el-upload-list:empty) {
+    display: none;
+  }
 }
 </style>
