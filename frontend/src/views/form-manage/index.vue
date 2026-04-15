@@ -5,9 +5,10 @@ import { computed, ref, useTemplateRef, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { formDefinitionApi } from '@/api/form-definition'
-import type { FormDefinitionEditorDetail } from '@/api/form-definition/type'
+import type { FormDefinitionFormDetail } from '@/api/form-definition/type'
 import { formGroupApi } from '@/api/form-group'
 import type { FormCatalogNode, FormCatalogNodeType, FormEntityId } from '@/api/form-group/type'
+import FormPreviewCanvas from '@/components/form-preview/form-preview-canvas.vue'
 import { useRequest } from '@/hooks/useRequest'
 import FormManageCreateFormDialog from '@/views/form-manage/components/form-manage-create-form-dialog.vue'
 import FormManageCreateGroupDialog from '@/views/form-manage/components/form-manage-create-group-dialog.vue'
@@ -37,7 +38,7 @@ const catalogTree = ref<FormCatalogNode[]>([])
 const expandedGroupIds = ref<FormEntityId[]>([])
 const selectedNodeId = ref<FormEntityId | null>(null)
 const selectedNodeType = ref<FormCatalogNodeType | null>(null)
-const selectedFormDetail = ref<FormDefinitionEditorDetail | null>(null)
+const selectedFormDetail = ref<FormDefinitionFormDetail | null>(null)
 const treeRef = useTemplateRef('treeRef')
 
 const collectGroupIds = (nodes: FormCatalogNode[], result: FormEntityId[] = []) => {
@@ -134,13 +135,17 @@ const formatDateTime = (value?: string | null) => {
 }
 
 const displayVersion = computed(() => {
-  const versionId = selectedFormDetail.value?.publishedVersionId
-  return versionId ? String(versionId) : '--'
+  const versionNo = selectedFormDetail.value?.publishedVersionNo
+  return versionNo ? `V${versionNo}` : '--'
 })
 
 const filteredCatalogTree = computed(() => filterCatalogTree(catalogTree.value, searchKeyword.value))
 const groupOptions = computed(() => flattenGroupOptions(catalogTree.value))
 const hasSelectedForm = computed(() => selectedNodeType.value === 'form' && Boolean(selectedFormDetail.value))
+const publishedPreviewTable = computed(() => selectedFormDetail.value?.schema ?? null)
+const hasPublishedPreview = computed(() => {
+  return Boolean(selectedFormDetail.value?.publishedVersionId && publishedPreviewTable.value)
+})
 const currentNodeKey = computed(() => selectedNodeId.value ?? undefined)
 
 const filterTreeNode = (keyword: string, data: unknown) => {
@@ -153,13 +158,10 @@ const filterTreeNode = (keyword: string, data: unknown) => {
   return currentNode.name.toLowerCase().includes(keyword.trim().toLowerCase())
 }
 
-const { loading: formDetailLoading, run: fetchFormDetail } = useRequest(formDefinitionApi.getEditor)
-const getFormDetail = async (formId: FormEntityId) => {
-  if (selectedFormDetail.value?.id === formId) {
-    return selectedFormDetail.value
-  }
-
-  return fetchFormDetail(formId)
+const { loading: formDetailLoading, run: fetchFormDetail } = useRequest(formDefinitionApi.getForm)
+const { run: fetchEditorDetail } = useRequest(formDefinitionApi.getEditor)
+const getEditorDetail = async (formId: FormEntityId) => {
+  return fetchEditorDetail(formId)
 }
 
 const selectNode = async (node: FormCatalogNode | null) => {
@@ -248,7 +250,7 @@ const openRenameDialog = async (node: FormCatalogNode) => {
     return
   }
 
-  const detail = await getFormDetail(node.id)
+  const detail = await getEditorDetail(node.id)
   renameDialogRef.value?.open({
     description: detail.description,
     groupId: detail.groupId,
@@ -262,7 +264,7 @@ const openRenameDialog = async (node: FormCatalogNode) => {
 // 移动表单
 const moveFormDialogRef = useTemplateRef('moveFormDialogRef')
 const openMoveFormDialog = async (node: FormCatalogNode) => {
-  const detail = await getFormDetail(node.id)
+  const detail = await getEditorDetail(node.id)
   moveFormDialogRef.value?.open({
     description: detail.description,
     groupId: detail.groupId,
@@ -468,23 +470,28 @@ watch(searchKeyword, (keyword) => {
           </div>
         </header>
 
-        <div class="min-h-0 flex-1 overflow-auto p-8" v-loading="formDetailLoading">
+        <div v-loading="formDetailLoading" class="min-h-0 flex-1 p-5">
           <div
             v-if="!selectedFormDetail"
-            class="flex h-full min-h-120 flex-col items-center justify-center rounded-[28px] border border-dashed border-slate-200 bg-white/80 text-center"
+            class="flex h-full min-h-120 flex-col items-center justify-center border border-dashed border-slate-200 bg-white/80 text-center"
           >
             <Icon class="mb-4 text-slate-300" icon="solar:document-add-linear" width="54" />
             <p class="text-lg font-medium text-slate-700">选择一个表单开始管理</p>
             <p class="mt-2 text-sm text-slate-400">这里会展示表单基础信息和预览区域</p>
           </div>
 
-          <div v-else class="h-full bg-[#f5f8fc] p-8 shadow-[0_18px_48px_rgba(148,163,184,0.08)]">
-            <div class="flex flex-col items-center justify-center">
+          <div v-else class="h-full overflow-hidden bg-[#f5f8fc] px-4 shadow-[0_18px_48px_rgba(148,163,184,0.08)]">
+            <el-scrollbar v-if="hasPublishedPreview" class="h-full">
+              <div class="flex min-h-full items-start justify-center py-4">
+                <div class="shrink-0 border border-slate-200 bg-white p-8 shadow-[0_10px_36px_rgba(148,163,184,0.12)]">
+                  <FormPreviewCanvas :table="publishedPreviewTable" mode="readonly" />
+                </div>
+              </div>
+            </el-scrollbar>
+
+            <div v-else class="flex h-full min-h-120 flex-col items-center justify-center text-center">
               <Icon class="mb-5 text-slate-300" icon="solar:document-text-linear" width="58" />
-              <p class="text-lg font-medium text-slate-700">预览能力待版本接口接入后开放</p>
-              <p class="mt-3 max-w-105 text-sm leading-6 text-slate-400">
-                当前先完成管理页主流程。后续接入 schema 与版本接口后，这里会展示真实表单画布。
-              </p>
+              <p class="text-lg font-medium text-slate-700">当前暂无已发布版本</p>
             </div>
           </div>
         </div>

@@ -14,6 +14,8 @@ declare module 'vue' {
   export interface GlobalComponents {
     ElButton: typeof import('element-plus/es')['ElButton']
     ElCheckbox: typeof import('element-plus/es')['ElCheckbox']
+    ElCheckboxGroup: typeof import('element-plus/es')['ElCheckboxGroup']
+    ElDatePicker: typeof import('element-plus/es')['ElDatePicker']
     ElDialog: typeof import('element-plus/es')['ElDialog']
     ElDropdown: typeof import('element-plus/es')['ElDropdown']
     ElDropdownItem: typeof import('element-plus/es')['ElDropdownItem']
@@ -25,6 +27,7 @@ declare module 'vue' {
     ElInput: typeof import('element-plus/es')['ElInput']
     ElInputNumber: typeof import('element-plus/es')['ElInputNumber']
     ElOption: typeof import('element-plus/es')['ElOption']
+    ElRadio: typeof import('element-plus/es')['ElRadio']
     ElRadioButton: typeof import('element-plus/es')['ElRadioButton']
     ElRadioGroup: typeof import('element-plus/es')['ElRadioGroup']
     ElScrollbar: typeof import('element-plus/es')['ElScrollbar']
@@ -33,6 +36,8 @@ declare module 'vue' {
     ElTag: typeof import('element-plus/es')['ElTag']
     ElTree: typeof import('element-plus/es')['ElTree']
     ElUpload: typeof import('element-plus/es')['ElUpload']
+    FormPreviewCanvas: typeof import('./src/components/form-preview/form-preview-canvas.vue')['default']
+    FormPreviewField: typeof import('./src/components/form-preview/form-preview-field.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
   }
@@ -45,6 +50,8 @@ declare module 'vue' {
 declare global {
   const ElButton: typeof import('element-plus/es')['ElButton']
   const ElCheckbox: typeof import('element-plus/es')['ElCheckbox']
+  const ElCheckboxGroup: typeof import('element-plus/es')['ElCheckboxGroup']
+  const ElDatePicker: typeof import('element-plus/es')['ElDatePicker']
   const ElDialog: typeof import('element-plus/es')['ElDialog']
   const ElDropdown: typeof import('element-plus/es')['ElDropdown']
   const ElDropdownItem: typeof import('element-plus/es')['ElDropdownItem']
@@ -56,6 +63,7 @@ declare global {
   const ElInput: typeof import('element-plus/es')['ElInput']
   const ElInputNumber: typeof import('element-plus/es')['ElInputNumber']
   const ElOption: typeof import('element-plus/es')['ElOption']
+  const ElRadio: typeof import('element-plus/es')['ElRadio']
   const ElRadioButton: typeof import('element-plus/es')['ElRadioButton']
   const ElRadioGroup: typeof import('element-plus/es')['ElRadioGroup']
   const ElScrollbar: typeof import('element-plus/es')['ElScrollbar']
@@ -64,6 +72,8 @@ declare global {
   const ElTag: typeof import('element-plus/es')['ElTag']
   const ElTree: typeof import('element-plus/es')['ElTree']
   const ElUpload: typeof import('element-plus/es')['ElUpload']
+  const FormPreviewCanvas: typeof import('./src/components/form-preview/form-preview-canvas.vue')['default']
+  const FormPreviewField: typeof import('./src/components/form-preview/form-preview-field.vue')['default']
   const RouterLink: typeof import('vue-router')['RouterLink']
   const RouterView: typeof import('vue-router')['RouterView']
 }

@@ -112,7 +112,6 @@ export const EDITOR_DEFAULT_TABLE_FORM: EditorCreateTableForm = {
   columns: 3,
 }
 
-export const EDITOR_SCHEMA_VERSION = 1
 export const EDITOR_TABLE_DEFAULT_COLUMN_WIDTH = 120
 export const EDITOR_TABLE_DEFAULT_ROW_HEIGHT = 25
 export const EDITOR_TABLE_HEADER_HEIGHT = 25

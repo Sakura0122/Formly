@@ -7,6 +7,7 @@ import com.sakura.formly.model.dto.formdefinition.FormDefinitionPageReq;
 import com.sakura.formly.model.dto.formdefinition.FormSchemaReq;
 import com.sakura.formly.model.dto.formdefinition.FormDefinitionUpdateReq;
 import com.sakura.formly.model.vo.formdefinition.FormDefinitionEditorVo;
+import com.sakura.formly.model.vo.formdefinition.FormDefinitionFormVo;
 import com.sakura.formly.model.vo.formdefinition.FormDefinitionListVo;
 import com.sakura.formly.model.vo.formdefinition.FormDefinitionPersistVo;
 import com.sakura.formly.service.FormDefinitionService;
@@ -50,6 +51,12 @@ public class FormDefinitionController {
     @GetMapping("/editor/{id}")
     public Result<FormDefinitionEditorVo> editor(@PathVariable Long id) {
         return Result.success(formDefinitionService.getFormEditorDetail(id));
+    }
+
+    @Operation(summary = "查询表单发布态预览数据")
+    @GetMapping("/form/{id}")
+    public Result<FormDefinitionFormVo> form(@PathVariable Long id) {
+        return Result.success(formDefinitionService.getFormPreviewDetail(id));
     }
 
     @Operation(summary = "分页查询表单定义")

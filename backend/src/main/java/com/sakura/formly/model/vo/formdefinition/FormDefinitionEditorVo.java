@@ -32,8 +32,8 @@ public class FormDefinitionEditorVo {
     @Schema(description = "排序值")
     private Integer sort;
 
-    @Schema(description = "当前 schema")
-    private Object currentSchema;
+    @Schema(description = "当前草稿 schema")
+    private Object schema;
 
     @Schema(description = "创建时间")
     private LocalDateTime createdAt;

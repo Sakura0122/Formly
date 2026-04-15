@@ -1,11 +1,20 @@
 import request from '@/utils/request'
 
 import type { FormEntityId } from '@/api/form-group/type'
-import type { FormDefinitionCreateReq, FormDefinitionEditorDetail, FormDefinitionUpdateReq } from './type'
+import type {
+  FormDefinitionCreateReq,
+  FormDefinitionEditorDetail,
+  FormDefinitionFormDetail,
+  FormDefinitionUpdateReq,
+} from './type'
 
 export const formDefinitionApi = {
   async getEditor(id: FormEntityId) {
     const res = await request.get<FormDefinitionEditorDetail>(`/form-definitions/editor/${id}`)
+    return res.data
+  },
+  async getForm(id: FormEntityId) {
+    const res = await request.get<FormDefinitionFormDetail>(`/form-definitions/form/${id}`)
     return res.data
   },
   async create(data: FormDefinitionCreateReq) {

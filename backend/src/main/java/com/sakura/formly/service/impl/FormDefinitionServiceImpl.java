@@ -18,6 +18,7 @@ import com.sakura.formly.model.dto.formdefinition.FormDefinitionUpdateReq;
 import com.sakura.formly.model.entity.FormDefinition;
 import com.sakura.formly.model.entity.FormVersion;
 import com.sakura.formly.model.vo.formdefinition.FormDefinitionEditorVo;
+import com.sakura.formly.model.vo.formdefinition.FormDefinitionFormVo;
 import com.sakura.formly.model.vo.formdefinition.FormDefinitionListVo;
 import com.sakura.formly.model.vo.formdefinition.FormDefinitionPersistVo;
 import com.sakura.formly.model.vo.formdefinition.FormSimpleVo;
@@ -91,13 +92,32 @@ public class FormDefinitionServiceImpl extends ServiceImpl<FormDefinitionMapper,
         // 2.转VO
         FormDefinitionEditorVo formDefinitionEditorVo = BeanUtil.copyProperties(formDefinition, FormDefinitionEditorVo.class);
 
-        // 3.填充table的json数据
+        // 3.填充schema
+        formDefinitionEditorVo.setSchema(getCurrentSchema(formDefinition.getDraftSchemaJson()));
+
+        // 4.获取版本详情
         FormVersion publishedVersion = getVersion(formDefinition.getPublishedVersionId());
-        formDefinitionEditorVo.setCurrentSchema(getCurrentSchema(resolveEditorSchemaJson(formDefinition, publishedVersion)));
+
+        // 5.是否存在未发布草稿
         formDefinitionEditorVo.setHasUnpublishedDraft(hasUnpublishedDraft(formDefinition.getDraftSchemaJson(), publishedVersion));
 
         // 4.返回
         return formDefinitionEditorVo;
+    }
+
+    @Override
+    public FormDefinitionFormVo getFormPreviewDetail(Long id) {
+        // 1.获取表单详情
+        FormDefinition formDefinition = getFormDefinitionById(id);
+
+        // 2.转VO
+        FormDefinitionFormVo formDefinitionFormVo = BeanUtil.copyProperties(formDefinition, FormDefinitionFormVo.class);
+
+        // 3.获取版本详情
+        FormVersion publishedVersion = getVersion(formDefinition.getPublishedVersionId());
+        formDefinitionFormVo.setPublishedVersionNo(ObjectUtil.isNull(publishedVersion) ? null : publishedVersion.getVersionNo());
+        formDefinitionFormVo.setSchema(getCurrentSchema(ObjectUtil.isNull(publishedVersion) ? null : publishedVersion.getSchemaJson()));
+        return formDefinitionFormVo;
     }
 
     @Override
@@ -128,9 +148,6 @@ public class FormDefinitionServiceImpl extends ServiceImpl<FormDefinitionMapper,
 
         // 4.保存当前草稿
         String nextDraftSchemaJson = nextSchemaJson;
-        if (ObjectUtil.isNotNull(publishedVersion) && !hasSchemaChanged(publishedVersion.getSchemaJson(), nextSchemaJson)) {
-            nextDraftSchemaJson = null;
-        }
 
         // 5.更新表单草稿与发布指针
         updateDefinitionDraft(formDefinition.getId(), nextDraftSchemaJson, formDefinition.getPublishedVersionId());
@@ -153,17 +170,15 @@ public class FormDefinitionServiceImpl extends ServiceImpl<FormDefinitionMapper,
 
         // 4.是否已是最新发布版本
         if (ObjectUtil.isNotNull(publishedVersion) && !hasSchemaChanged(publishedVersion.getSchemaJson(), nextSchemaJson)) {
-            if (StrUtil.isNotBlank(formDefinition.getDraftSchemaJson())) {
-                updateDefinitionDraft(formDefinition.getId(), null, formDefinition.getPublishedVersionId());
-            }
+            updateDefinitionDraft(formDefinition.getId(), nextSchemaJson, formDefinition.getPublishedVersionId());
             return buildPersistVo(formDefinition.getPublishedVersionId(), false, publishedVersion.getVersionNo(), true);
         }
 
         // 5.创建新的发布版本
         FormVersion targetVersion = createPublishedVersion(formDefinition.getId(), nextSchemaJson);
 
-        // 6.更新表单发布指针并清空草稿
-        updateDefinitionDraft(formDefinition.getId(), null, targetVersion.getId());
+        // 6.更新表单发布指针并保留本次草稿
+        updateDefinitionDraft(formDefinition.getId(), nextSchemaJson, targetVersion.getId());
 
         // 7.返回
         return buildPersistVo(targetVersion.getId(), false, targetVersion.getVersionNo(), false);
@@ -267,25 +282,6 @@ public class FormDefinitionServiceImpl extends ServiceImpl<FormDefinitionMapper,
         formVersionService.save(formVersion);
 
         return formVersion;
-    }
-
-    /**
-     * 使用草稿还是发布的正式版本
-     *
-     * @param formDefinition   草稿
-     * @param publishedVersion 正式版本
-     * @return schema
-     */
-    private String resolveEditorSchemaJson(FormDefinition formDefinition, FormVersion publishedVersion) {
-        if (StrUtil.isNotBlank(formDefinition.getDraftSchemaJson())) {
-            return formDefinition.getDraftSchemaJson();
-        }
-
-        if (ObjectUtil.isNotNull(publishedVersion)) {
-            return publishedVersion.getSchemaJson();
-        }
-
-        return null;
     }
 
     /**

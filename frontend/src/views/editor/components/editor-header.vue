@@ -10,7 +10,7 @@ import { useRouter } from 'vue-router'
 const router = useRouter()
 const editorStore = useEditorStore()
 
-const { dirty, canUndo, canRedo, currentFormId, publishedVersionId, hasUnpublishedDraft, formName } =
+const { dirty, canUndo, canRedo, currentFormId, publishedVersionId, hasSavedDraft, hasUnpublishedDraft, formName } =
   storeToRefs(editorStore)
 
 const statusType = computed(() => {
@@ -49,7 +49,7 @@ const statusLabel = computed(() => {
   return '未保存'
 })
 
-const previewDisabled = computed(() => !editorStore.table)
+const previewDisabled = computed(() => !currentFormId.value || !hasSavedDraft.value)
 const saveDisabled = computed(() => !currentFormId.value || !editorStore.table || !dirty.value)
 const publishDisabled = computed(() => !currentFormId.value || !editorStore.table)
 const formatVersionLabel = (versionNo: number) => `V${versionNo}`
@@ -65,7 +65,21 @@ const handleBack = () => {
 }
 
 const handlePreview = () => {
-  ElMessage.info('预览能力将在后续阶段接入')
+  if (!currentFormId.value || !hasSavedDraft.value) {
+    return
+  }
+
+  const previewRoute = router.resolve({
+    path: '/form-preview',
+    query: {
+      formId: String(currentFormId.value),
+    },
+  })
+  const previewWindow = window.open(previewRoute.href, '_blank', 'noopener')
+
+  if (!previewWindow) {
+    ElMessage.warning('预览窗口被拦截，请允许浏览器打开新窗口')
+  }
 }
 
 // 保存

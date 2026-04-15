@@ -3,7 +3,6 @@ import { computed, ref, shallowRef } from 'vue'
 
 import {
   EDITOR_DEFAULT_OPTIONS,
-  EDITOR_SCHEMA_VERSION,
   EDITOR_TABLE_DEFAULT_COLUMN_WIDTH,
   EDITOR_TABLE_DEFAULT_ROW_HEIGHT,
   EDITOR_TABLE_LIMITS,
@@ -71,6 +70,8 @@ export const useEditorStore = defineStore('editor', () => {
   const formName = ref('Formly 表单编辑器')
   /** 当前发布版本 ID */
   const publishedVersionId = ref<string | null>(null)
+  /** 是否存在已保存草稿 */
+  const hasSavedDraft = ref(false)
   /** 是否存在未发布草稿 */
   const hasUnpublishedDraft = ref(false)
   /** 是否存在未保存改动 */
@@ -251,20 +252,18 @@ export const useEditorStore = defineStore('editor', () => {
    * 将当前内存态序列化为可落库的 schema。
    */
   const buildSchema = (): EditorSchema => {
-    return {
-      schemaVersion: EDITOR_SCHEMA_VERSION,
-      table: cloneTableSnapshot(table.value),
-    }
+    return cloneTableSnapshot(table.value)
   }
 
   /**
    * 用后端返回的 schema 重置编辑器现场。
    */
   const hydrateEditor = (payload: FormDefinitionEditorDetail) => {
-    table.value = cloneTableSnapshot(payload.currentSchema?.table ?? null)
+    table.value = cloneTableSnapshot(payload.schema ?? null)
     currentFormId.value = payload.id
     formName.value = payload.name
     publishedVersionId.value = payload.publishedVersionId
+    hasSavedDraft.value = Boolean(payload.schema)
     hasUnpublishedDraft.value = payload.hasUnpublishedDraft
     cellClipboard.value = null
     dirty.value = false
@@ -281,6 +280,7 @@ export const useEditorStore = defineStore('editor', () => {
     hasUnpublishedDraft: boolean
   }) => {
     publishedVersionId.value = payload.publishedVersionId
+    hasSavedDraft.value = true
     hasUnpublishedDraft.value = payload.hasUnpublishedDraft
     dirty.value = false
   }
@@ -293,6 +293,7 @@ export const useEditorStore = defineStore('editor', () => {
     currentFormId.value = ''
     formName.value = 'Formly 表单编辑器'
     publishedVersionId.value = null
+    hasSavedDraft.value = false
     hasUnpublishedDraft.value = false
     cellClipboard.value = null
     dirty.value = false
@@ -1043,6 +1044,7 @@ export const useEditorStore = defineStore('editor', () => {
     dirty,
     executeContextCommand,
     formName,
+    hasSavedDraft,
     hasUnpublishedDraft,
     hydrateEditor,
     getContextMenuItems,

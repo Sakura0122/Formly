@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
 import EditorView from '@/views/editor/index.vue'
+import FormPreviewView from '@/views/form-preview/index.vue'
 import FormManageView from '@/views/form-manage/index.vue'
 
 const router = createRouter({
@@ -19,6 +20,11 @@ const router = createRouter({
       path: '/editor',
       name: 'editor',
       component: EditorView,
+    },
+    {
+      path: '/form-preview',
+      name: 'form-preview',
+      component: FormPreviewView,
     },
   ],
 })
