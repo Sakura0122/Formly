@@ -46,3 +46,12 @@ export type FormDefinitionFormDetail = {
   schema: EditorSchema | null
   updatedAt: string
 }
+
+export type FormDefinitionPasteParseReq = {
+  documentHtml?: string
+  plainText?: string
+}
+
+export type FormDefinitionPasteParseResult = {
+  schemaJson: EditorSchema
+}

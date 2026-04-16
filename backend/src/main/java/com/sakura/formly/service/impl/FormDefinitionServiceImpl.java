@@ -12,6 +12,7 @@ import com.sakura.formly.common.ResultCodeEnum;
 import com.sakura.formly.exception.BusinessException;
 import com.sakura.formly.mapper.FormDefinitionMapper;
 import com.sakura.formly.model.dto.formdefinition.FormDefinitionCreateReq;
+import com.sakura.formly.model.dto.formdefinition.FormDefinitionPasteParseReq;
 import com.sakura.formly.model.dto.formdefinition.FormDefinitionPageReq;
 import com.sakura.formly.model.dto.formdefinition.FormSchemaReq;
 import com.sakura.formly.model.dto.formdefinition.FormDefinitionUpdateReq;
@@ -21,12 +22,14 @@ import com.sakura.formly.model.vo.formdefinition.FormDefinitionEditorVo;
 import com.sakura.formly.model.vo.formdefinition.FormDefinitionFormVo;
 import com.sakura.formly.model.vo.formdefinition.FormDefinitionHistoryItemVo;
 import com.sakura.formly.model.vo.formdefinition.FormDefinitionListVo;
+import com.sakura.formly.model.vo.formdefinition.FormDefinitionPasteParseVo;
 import com.sakura.formly.model.vo.formdefinition.FormDefinitionPersistVo;
 import com.sakura.formly.model.vo.formdefinition.FormSimpleVo;
 import com.sakura.formly.service.FormDefinitionService;
 import com.sakura.formly.service.FormGroupService;
 import com.sakura.formly.service.FormSubmissionService;
 import com.sakura.formly.service.FormVersionService;
+import com.sakura.formly.util.FormDefinitionPasteParseUtil;
 
 import java.util.List;
 
@@ -203,6 +206,21 @@ public class FormDefinitionServiceImpl extends ServiceImpl<FormDefinitionMapper,
 
         // 7.返回
         return buildPersistVo(targetVersion.getId(), false, targetVersion.getVersionNo(), false);
+    }
+
+    @Override
+    public FormDefinitionPasteParseVo parsePastedDocument(Long id, FormDefinitionPasteParseReq request) {
+        getFormDefinitionById(id);
+
+        Object schemaJson = FormDefinitionPasteParseUtil.parseSchema(request.getDocumentHtml(), request.getPlainText());
+
+        if (ObjectUtil.isNull(schemaJson)) {
+            throw new BusinessException(ResultCodeEnum.PARAMS_ERROR, "未识别到可导入的表格内容");
+        }
+
+        FormDefinitionPasteParseVo formDefinitionPasteParseVo = new FormDefinitionPasteParseVo();
+        formDefinitionPasteParseVo.setSchemaJson(schemaJson);
+        return formDefinitionPasteParseVo;
     }
 
     @Override

@@ -24,10 +24,14 @@ defineOptions({
 })
 
 const editorStore = useEditorStore()
-const { currentFormId, publishedVersionId } = storeToRefs(editorStore)
+const { currentFormId, publishedVersionId, table } = storeToRefs(editorStore)
 const route = useRoute()
 
 const historyMode = ref(false)
+
+const shouldHandleSchemaPaste = (target: EventTarget | null) => {
+  return !historyMode.value && Boolean(currentFormId.value) && !table.value && !isEditableTarget(target)
+}
 
 const tableDialogRef = useTemplateRef('tableDialogRef')
 const openTableDialog = (mode: 'create' | 'rebuild') => {
@@ -77,6 +81,10 @@ const handleWindowKeydown = (event: KeyboardEvent) => {
   }
 
   if (key === 'v') {
+    if (shouldHandleSchemaPaste(event.target)) {
+      return
+    }
+
     if (editorStore.pasteToActiveCell()) {
       event.preventDefault()
     }
@@ -98,6 +106,41 @@ const handleWindowKeydown = (event: KeyboardEvent) => {
 }
 
 useEventListener(window, 'keydown', handleWindowKeydown)
+
+const { loading: parseLoading, run: parsePastedDocumentApi } = useRequest(formDefinitionApi.parsePastedDocument)
+const handleWindowPaste = async (event: ClipboardEvent) => {
+  if (!shouldHandleSchemaPaste(event.target) || parseLoading.value) {
+    return
+  }
+
+  const documentHtml = event.clipboardData?.getData('text/html')?.trim() ?? ''
+  const plainText = event.clipboardData?.getData('text/plain') ?? ''
+
+  if (!documentHtml && !plainText.trim()) {
+    return
+  }
+
+  event.preventDefault()
+
+  try {
+    const res = await parsePastedDocumentApi(currentFormId.value, {
+      documentHtml: documentHtml || undefined,
+      plainText: plainText.trim() ? plainText : undefined,
+    })
+
+    if (!res.schemaJson) {
+      ElMessage.warning('当前粘贴内容未识别出可导入的表格')
+      return
+    }
+
+    editorStore.restoreTable(res.schemaJson)
+    ElMessage.success('已识别并生成表格')
+  } catch {
+    return
+  }
+}
+
+useEventListener(window, 'paste', handleWindowPaste)
 
 const handleCanvasContextMenu = (payload: EditorCanvasContextMenuPayload) => {
   openContextMenu(
@@ -168,7 +211,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div v-loading="pageLoading" class="flex h-screen flex-col overflow-hidden bg-slate-100">
+  <div v-loading="pageLoading || parseLoading" class="flex h-screen flex-col overflow-hidden bg-slate-100">
     <EditorHeader @open-history="handleOpenHistory" />
 
     <main class="flex min-h-0 flex-1 gap-4 overflow-hidden p-4 lg:p-5">

@@ -151,7 +151,7 @@ const handleRemoveField = (fieldId: string) => {
 </script>
 
 <template>
-  <aside class="flex h-full min-h-0 flex-col rounded-3xl border border-slate-200 bg-white">
+  <aside class="flex h-full min-h-0 flex-col bg-white">
     <div class="border-b border-slate-100 px-5 py-5">
       <h2 class="text-base font-semibold text-slate-900">配置面板</h2>
     </div>

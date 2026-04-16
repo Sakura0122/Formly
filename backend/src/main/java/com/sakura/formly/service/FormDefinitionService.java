@@ -4,6 +4,7 @@ import com.sakura.formly.model.entity.FormDefinition;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.sakura.formly.common.PageVo;
 import com.sakura.formly.model.dto.formdefinition.FormDefinitionCreateReq;
+import com.sakura.formly.model.dto.formdefinition.FormDefinitionPasteParseReq;
 import com.sakura.formly.model.dto.formdefinition.FormDefinitionPageReq;
 import com.sakura.formly.model.dto.formdefinition.FormSchemaReq;
 import com.sakura.formly.model.dto.formdefinition.FormDefinitionUpdateReq;
@@ -11,6 +12,7 @@ import com.sakura.formly.model.vo.formdefinition.FormDefinitionEditorVo;
 import com.sakura.formly.model.vo.formdefinition.FormDefinitionFormVo;
 import com.sakura.formly.model.vo.formdefinition.FormDefinitionHistoryItemVo;
 import com.sakura.formly.model.vo.formdefinition.FormDefinitionListVo;
+import com.sakura.formly.model.vo.formdefinition.FormDefinitionPasteParseVo;
 import com.sakura.formly.model.vo.formdefinition.FormDefinitionPersistVo;
 import com.sakura.formly.model.vo.formdefinition.FormSimpleVo;
 
@@ -38,6 +40,8 @@ public interface FormDefinitionService extends IService<FormDefinition> {
     FormDefinitionPersistVo saveFormSchema(Long id, FormSchemaReq request);
 
     FormDefinitionPersistVo publishFormSchema(Long id, FormSchemaReq request);
+
+    FormDefinitionPasteParseVo parsePastedDocument(Long id, FormDefinitionPasteParseReq request);
 
     void deleteFormDefinition(Long id);
 

@@ -3,6 +3,7 @@ package com.sakura.formly.controller;
 import com.sakura.formly.common.PageVo;
 import com.sakura.formly.common.Result;
 import com.sakura.formly.model.dto.formdefinition.FormDefinitionCreateReq;
+import com.sakura.formly.model.dto.formdefinition.FormDefinitionPasteParseReq;
 import com.sakura.formly.model.dto.formdefinition.FormDefinitionPageReq;
 import com.sakura.formly.model.dto.formdefinition.FormSchemaReq;
 import com.sakura.formly.model.dto.formdefinition.FormDefinitionUpdateReq;
@@ -10,6 +11,7 @@ import com.sakura.formly.model.vo.formdefinition.FormDefinitionEditorVo;
 import com.sakura.formly.model.vo.formdefinition.FormDefinitionFormVo;
 import com.sakura.formly.model.vo.formdefinition.FormDefinitionHistoryItemVo;
 import com.sakura.formly.model.vo.formdefinition.FormDefinitionListVo;
+import com.sakura.formly.model.vo.formdefinition.FormDefinitionPasteParseVo;
 import com.sakura.formly.model.vo.formdefinition.FormDefinitionPersistVo;
 import com.sakura.formly.service.FormDefinitionService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -89,6 +91,15 @@ public class FormDefinitionController {
             @Valid @RequestBody FormSchemaReq formSchemaReq
     ) {
         return Result.success(formDefinitionService.publishFormSchema(id, formSchemaReq));
+    }
+
+    @Operation(summary = "解析粘贴的 Word / Excel 表格")
+    @PostMapping("/{id}/paste-parse")
+    public Result<FormDefinitionPasteParseVo> pasteParse(
+            @PathVariable Long id,
+            @Valid @RequestBody FormDefinitionPasteParseReq formDefinitionPasteParseReq
+    ) {
+        return Result.success(formDefinitionService.parsePastedDocument(id, formDefinitionPasteParseReq));
     }
 
     @Operation(summary = "删除表单定义")

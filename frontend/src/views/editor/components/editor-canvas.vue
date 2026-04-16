@@ -3,6 +3,7 @@ import { useElementSize, useEventListener } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, ref, useTemplateRef } from 'vue'
 
+import formlyLogoMark from '@/assets/brand/formly-logo-mark.svg'
 import {
   EDITOR_TABLE_HEADER_HEIGHT,
   EDITOR_TABLE_MIN_COLUMN_WIDTH,
@@ -94,7 +95,6 @@ const columnHeaders = computed(() => {
     }
   })
 })
-
 
 // [{index: 0, rowNumber: 1, height: 25}]
 const rowHeaders = computed(() => {
@@ -408,106 +408,106 @@ useEventListener(window, 'mouseup', clearDraggingState)
               }"
               @contextmenu.stop.prevent="handleContextMenu($event)"
             >
-                <!-- 左上角的空白格 -->
+              <!-- 左上角的空白格 -->
+              <div
+                class="border-r border-b border-slate-300 bg-[#f2f6f7]"
+                :style="{
+                  gridColumn: '1 / 2',
+                  gridRow: '1 / 2',
+                }"
+              />
+
+              <!-- 列头 -->
+              <div
+                v-for="column in displayColumnHeaders"
+                :key="column.columnNumber"
+                class="relative flex items-center justify-center border-r border-b border-slate-300 bg-[#f2f6f7] text-[10px] font-medium text-[#6f8686]"
+                :style="{
+                  gridColumn: `${column.columnNumber + 1} / ${column.columnNumber + 2}`,
+                  gridRow: '1 / 2',
+                }"
+              >
+                {{ column.label }}
+                <button
+                  v-if="!readonly"
+                  class="absolute inset-y-0 -right-0.5 z-10 w-1 cursor-col-resize"
+                  @mousedown.stop.prevent="startColumnResize($event, column.index)"
+                />
+              </div>
+
+              <!-- 行头 -->
+              <div
+                v-for="row in rowHeaders"
+                :key="row.rowNumber"
+                class="relative flex items-center justify-center border-r border-b border-slate-300 bg-[#f2f6f7] text-[10px] font-medium text-[#6f8686]"
+                :class="selectedCellIdSet.size ? 'select-none' : ''"
+                :style="{
+                  gridColumn: '1 / 2',
+                  gridRow: `${row.rowNumber + 1} / ${row.rowNumber + 2}`,
+                }"
+              >
+                {{ row.rowNumber }}
+                <button
+                  v-if="!readonly"
+                  class="absolute inset-x-0 -bottom-0.5 z-10 h-1 cursor-row-resize"
+                  @mousedown.stop.prevent="startRowResize($event, row.index)"
+                />
+              </div>
+
+              <!-- 多选边框 -->
+              <div
+                v-if="multiSelectionBounds"
+                class="pointer-events-none z-2 border-2 border-emerald-500 bg-emerald-100/10"
+                :style="{
+                  gridColumn: `${multiSelectionBounds.colStart + 1} / ${multiSelectionBounds.colEnd + 2}`,
+                  gridRow: `${multiSelectionBounds.rowStart + 1} / ${multiSelectionBounds.rowEnd + 2}`,
+                }"
+              />
+
+              <div
+                v-for="cell in visibleCells"
+                :key="cell.id"
+                class="relative min-w-0 border-r border-b border-slate-300 bg-white px-0.5 py-0"
+                :class="[
+                  !readonly && selectedCellIdSet.has(cell.id) ? 'bg-emerald-50/35' : '',
+                  !readonly && activeCellId === cell.id ? 'z-1' : '',
+                ]"
+                :style="{
+                  gridColumn: `${cell.col + 1} / span ${cell.colSpan}`,
+                  gridRow: `${cell.row + 1} / span ${cell.rowSpan}`,
+                }"
+                @mousedown.stop.prevent="handleCellMouseDown($event, cell.id)"
+                @mouseover="handleCellMouseEnter(cell.id)"
+                @contextmenu.stop.prevent="handleContextMenu($event, cell.id)"
+                @dragover.prevent
+                @drop.prevent="handleDrop($event, cell.id)"
+              >
                 <div
-                  class="border-r border-b border-slate-300 bg-[#f2f6f7]"
-                  :style="{
-                    gridColumn: '1 / 2',
-                    gridRow: '1 / 2',
-                  }"
+                  v-if="!readonly && activeCellId === cell.id && selectedCellIds.length <= 1"
+                  class="pointer-events-none absolute inset-0 border-2 border-emerald-500"
                 />
 
-                <!-- 列头 -->
                 <div
-                  v-for="column in displayColumnHeaders"
-                  :key="column.columnNumber"
-                  class="relative flex items-center justify-center border-r border-b border-slate-300 bg-[#f2f6f7] text-[10px] font-medium text-[#6f8686]"
-                  :style="{
-                    gridColumn: `${column.columnNumber + 1} / ${column.columnNumber + 2}`,
-                    gridRow: '1 / 2',
-                  }"
-                >
-                  {{ column.label }}
-                  <button
-                    v-if="!readonly"
-                    class="absolute inset-y-0 -right-0.5 z-10 w-1 cursor-col-resize"
-                    @mousedown.stop.prevent="startColumnResize($event, column.index)"
-                  />
-                </div>
-
-                <!-- 行头 -->
-                <div
-                  v-for="row in rowHeaders"
-                  :key="row.rowNumber"
-                  class="relative flex items-center justify-center border-r border-b border-slate-300 bg-[#f2f6f7] text-[10px] font-medium text-[#6f8686]"
-                  :class="selectedCellIdSet.size ? 'select-none' : ''"
-                  :style="{
-                    gridColumn: '1 / 2',
-                    gridRow: `${row.rowNumber + 1} / ${row.rowNumber + 2}`,
-                  }"
-                >
-                  {{ row.rowNumber }}
-                  <button
-                    v-if="!readonly"
-                    class="absolute inset-x-0 -bottom-0.5 z-10 h-1 cursor-row-resize"
-                    @mousedown.stop.prevent="startRowResize($event, row.index)"
-                  />
-                </div>
-
-                <!-- 多选边框 -->
-                <div
-                  v-if="multiSelectionBounds"
-                  class="pointer-events-none z-2 border-2 border-emerald-500 bg-emerald-100/10"
-                  :style="{
-                    gridColumn: `${multiSelectionBounds.colStart + 1} / ${multiSelectionBounds.colEnd + 2}`,
-                    gridRow: `${multiSelectionBounds.rowStart + 1} / ${multiSelectionBounds.rowEnd + 2}`,
-                  }"
-                />
-
-                <div
-                  v-for="cell in visibleCells"
-                  :key="cell.id"
-                  class="relative min-w-0 border-r border-b border-slate-300 bg-white px-0.5 py-0"
-                  :class="[
-                    !readonly && selectedCellIdSet.has(cell.id) ? 'bg-emerald-50/35' : '',
-                    !readonly && activeCellId === cell.id ? 'z-1' : '',
-                  ]"
-                  :style="{
-                    gridColumn: `${cell.col + 1} / span ${cell.colSpan}`,
-                    gridRow: `${cell.row + 1} / span ${cell.rowSpan}`,
-                  }"
-                  @mousedown.stop.prevent="handleCellMouseDown($event, cell.id)"
-                  @mouseover="handleCellMouseEnter(cell.id)"
-                  @contextmenu.stop.prevent="handleContextMenu($event, cell.id)"
-                  @dragover.prevent
-                  @drop.prevent="handleDrop($event, cell.id)"
+                  v-if="cell.fields.length"
+                  class="flex h-full min-w-0 flex-col gap-0.5"
+                  :class="cell.fields.length === 1 ? 'justify-center' : ''"
                 >
                   <div
-                    v-if="!readonly && activeCellId === cell.id && selectedCellIds.length <= 1"
-                    class="pointer-events-none absolute inset-0 border-2 border-emerald-500"
-                  />
-
-                  <div
-                    v-if="cell.fields.length"
-                    class="flex h-full min-w-0 flex-col gap-0.5"
-                    :class="cell.fields.length === 1 ? 'justify-center' : ''"
+                    v-for="field in cell.fields"
+                    :key="field.uuid"
+                    class="min-w-0 px-0 py-0 transition"
+                    :class="[
+                      !readonly && field.uuid === activeFieldId ? 'bg-sky-50/45' : '',
+                      cell.fields.length === 1 ? 'flex h-full items-center' : '',
+                    ]"
+                    @click.stop="handleFieldClick(cell.id, field.uuid)"
                   >
-                    <div
-                      v-for="field in cell.fields"
-                      :key="field.uuid"
-                      class="min-w-0 px-0 py-0 transition"
-                      :class="[
-                        !readonly && field.uuid === activeFieldId ? 'bg-sky-50/45' : '',
-                        cell.fields.length === 1 ? 'flex h-full items-center' : '',
-                      ]"
-                      @click.stop="handleFieldClick(cell.id, field.uuid)"
-                    >
-                      <div class="pointer-events-none min-w-0 w-full">
-                        <EditorFieldPreview :field="field" />
-                      </div>
+                    <div class="pointer-events-none min-w-0 w-full">
+                      <EditorFieldPreview :field="field" />
                     </div>
                   </div>
                 </div>
+              </div>
             </div>
           </div>
         </div>
@@ -516,7 +516,12 @@ useEventListener(window, 'mouseup', clearDraggingState)
 
     <template v-else>
       <div class="h-full p-4" @contextmenu.prevent="handleContextMenu($event)">
-        <div class="h-full border border-slate-200 bg-white" />
+        <div class="flex h-full items-center justify-center border border-slate-200 bg-white px-6">
+          <div class="flex max-w-md flex-col items-center text-center">
+            <img :src="formlyLogoMark" alt="Formly" class="h-24 w-24 object-contain" />
+            <p class="mt-6 text-base font-medium text-slate-700">复制 Word / Excel 表格后可直接粘贴到此处</p>
+          </div>
+        </div>
       </div>
     </template>
   </section>

@@ -6,6 +6,8 @@ import type {
   FormDefinitionEditorDetail,
   FormDefinitionFormDetail,
   FormDefinitionHistoryItem,
+  FormDefinitionPasteParseReq,
+  FormDefinitionPasteParseResult,
   FormDefinitionUpdateReq,
 } from './type'
 
@@ -20,6 +22,10 @@ export const formDefinitionApi = {
   },
   async getHistory(id: FormEntityId) {
     const res = await request.get<FormDefinitionHistoryItem[]>(`/form-definitions/${id}/history`)
+    return res.data
+  },
+  async parsePastedDocument(formId: FormEntityId, data: FormDefinitionPasteParseReq) {
+    const res = await request.post<FormDefinitionPasteParseResult>(`/form-definitions/${formId}/paste-parse`, data)
     return res.data
   },
   async create(data: FormDefinitionCreateReq) {
