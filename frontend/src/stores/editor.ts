@@ -35,8 +35,8 @@ import type {
 import {
   createEditorTable,
   createUUID,
-  deleteColumn,
-  deleteRow,
+  deleteColumns,
+  deleteRows,
   getCellById,
   insertColumnLeft,
   insertColumnRight,
@@ -826,6 +826,24 @@ export const useEditorStore = defineStore('editor', () => {
   }
 
   /**
+   * 结构删除优先按当前选区覆盖到的行列收口；无多选时退回到活动单元格所在行列。
+   */
+  const getSelectedStructureTargets = () => {
+    const targetCells = (
+      selectedCellIds.value.length
+        ? selectedCellIds.value.map((cellId) => getCellById(table.value, cellId))
+        : activeCell.value
+          ? [activeCell.value]
+          : []
+    ).filter((cell): cell is NonNullable<typeof cell> => Boolean(cell))
+
+    return {
+      rowNumbers: [...new Set(targetCells.map((cell) => cell.row))].sort((left, right) => left - right),
+      columnNumbers: [...new Set(targetCells.map((cell) => cell.col))].sort((left, right) => left - right),
+    }
+  }
+
+  /**
    * 构建带数量输入的菜单项。
    */
   const buildInsertMenuItem = (
@@ -897,12 +915,12 @@ export const useEditorStore = defineStore('editor', () => {
         ),
         {
           command: 'delete-row',
-          label: '删除整行',
+          label: '删除行',
           icon: 'mdi:table-row-remove',
         },
         {
           command: 'delete-column',
-          label: '删除整列',
+          label: '删除列',
           icon: 'mdi:table-column-remove',
         },
       )
@@ -1045,9 +1063,13 @@ export const useEditorStore = defineStore('editor', () => {
       }
 
       case 'delete-row': {
-        const currentActiveCell = activeCell.value
+        if (!table.value) {
+          return
+        }
 
-        if (!table.value || !currentActiveCell) {
+        const { rowNumbers } = getSelectedStructureTargets()
+
+        if (!rowNumbers.length) {
           return
         }
 
@@ -1056,7 +1078,7 @@ export const useEditorStore = defineStore('editor', () => {
             return currentTable
           }
 
-          return deleteRow(currentTable, currentActiveCell.id)
+          return deleteRows(currentTable, rowNumbers)
         })
 
         if (!changed) {
@@ -1068,9 +1090,13 @@ export const useEditorStore = defineStore('editor', () => {
       }
 
       case 'delete-column': {
-        const currentActiveCell = activeCell.value
+        if (!table.value) {
+          return
+        }
 
-        if (!table.value || !currentActiveCell) {
+        const { columnNumbers } = getSelectedStructureTargets()
+
+        if (!columnNumbers.length) {
           return
         }
 
@@ -1079,7 +1105,7 @@ export const useEditorStore = defineStore('editor', () => {
             return currentTable
           }
 
-          return deleteColumn(currentTable, currentActiveCell.id)
+          return deleteColumns(currentTable, columnNumbers)
         })
 
         if (!changed) {

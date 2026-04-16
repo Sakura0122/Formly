@@ -369,6 +369,50 @@ const createCellKey = (row: number, col: number) => {
 }
 
 /**
+ * 把“要删除的行号/列号”整理成一个合法、干净、可用的数组
+ * @param lineNumbers 要删除的行号/列号
+ * @param max 表格的最大行号/列号
+ * @returns 整理后的行号/列号数组
+ */
+const normalizeLineNumbers = (lineNumbers: number[], max: number) => {
+  return [...new Set(lineNumbers.map((lineNumber) => Math.floor(lineNumber)).filter((lineNumber) => lineNumber >= 1 && lineNumber <= max))]
+    .sort((left, right) => left - right)
+}
+
+/**
+ * 算“在当前这一行/列之前，一共删了多少行/列”。
+ * @param lineNumbers 要删除的行号/列号
+ * @param currentLine 当前行号/列号
+ * @returns
+ */
+const countDeletedBefore = (lineNumbers: number[], currentLine: number) => {
+  return lineNumbers.filter((lineNumber) => lineNumber < currentLine).length
+}
+
+/**
+ * 算“一个单元格自己覆盖的范围里，被删掉了多少行/列”。
+ * @param lineNumbers 要删除的行号/列号
+ * @param startLine 开始行号/列号
+ * @param endLine 结束行号/列号
+ * @returns
+ */
+const countDeletedInsideRange = (lineNumbers: number[], startLine: number, endLine: number) => {
+  return lineNumbers.filter((lineNumber) => lineNumber >= startLine && lineNumber <= endLine).length
+}
+
+/**
+ * 删掉行高/列宽
+ * @param values 数组
+ * @param deletedLineNumbers 要删除的行号/列号
+ * @returns 删掉行高/列宽后的数组
+ */
+const omitLineValues = <T>(values: T[], deletedLineNumbers: number[]) => {
+  const deletedLineSet = new Set(deletedLineNumbers)
+
+  return values.filter((_, index) => !deletedLineSet.has(index + 1))
+}
+
+/**
  * 通过可见单元格重建表格
  * @param rows 表格行数
  * @param columns 表格列数
@@ -384,7 +428,9 @@ const rebuildTableByVisibleCells = (
   columnWidths: number[],
   rowHeights: number[],
 ): EditorCanvasTable => {
+  // 记录哪些位置是真正的主单元格
   const masterCellMap = new Map<string, EditorCanvasCell>()
+  // 记录哪些位置是合并单元格
   const mergedCellParentMap = new Map<string, string>()
 
   visibleCells.forEach((cell) => {
@@ -445,6 +491,57 @@ const rebuildTableByVisibleCells = (
 }
 
 /**
+ * 删除指定行
+ */
+export const deleteRows = (table: EditorCanvasTable, rowNumbers: number[]) => {
+  // 1.整理要删除的行号
+  const normalizedRows = normalizeLineNumbers(rowNumbers, table.rows)
+
+  if (!normalizedRows.length) {
+    return table
+  }
+
+  if (normalizedRows.length >= table.rows) {
+    return null
+  }
+
+  // 2. 筛选出所有可见单元格
+  const nextVisibleCells = getVisibleCells(table).flatMap((cell) => {
+    // 2.1 计算这个单元格的范围
+    const range = getCellRange(cell)
+    // 2.2 计算这个单元格前面删了多少行
+    const deletedBefore = countDeletedBefore(normalizedRows, range.rowStart)
+    // 2.3 计算这个单元格自己覆盖的范围里，删了多少行
+    const deletedInsideRange = countDeletedInsideRange(normalizedRows, range.rowStart, range.rowEnd)
+    // 2.4 计算新的行跨度
+    const nextRowSpan = cell.rowSpan - deletedInsideRange
+
+    if (nextRowSpan <= 0) {
+      return []
+    }
+
+    return [
+      {
+        ...cell,
+        row: cell.row - deletedBefore,
+        rowSpan: nextRowSpan,
+        merged: false,
+        mergeParentId: '',
+      },
+    ]
+  })
+
+  return rebuildTableByVisibleCells(
+    table.rows - normalizedRows.length,
+    table.columns,
+    nextVisibleCells,
+    [...table.columnWidths],
+    // 3. 删掉行高
+    omitLineValues(table.rowHeights, normalizedRows),
+  )
+}
+
+/**
  * 删除整行
  * @param table 表格数据
  * @param cellId 单元格id
@@ -457,59 +554,56 @@ export const deleteRow = (table: EditorCanvasTable, cellId: string) => {
     return table
   }
 
-  if (table.rows <= 1) {
+  return deleteRows(table, [activeCell.row])
+}
+
+/**
+ * 删除指定列
+ */
+export const deleteColumns = (table: EditorCanvasTable, columnNumbers: number[]) => {
+  // 1.把输入整理干净
+  const normalizedColumns = normalizeLineNumbers(columnNumbers, table.columns)
+
+  if (!normalizedColumns.length) {
+    return table
+  }
+
+  if (normalizedColumns.length >= table.columns) {
     return null
   }
 
-  const deletedRow = activeCell.row
+  // 2.遍历所有可见单元格，计算删完后还剩什么
   const nextVisibleCells = getVisibleCells(table).flatMap((cell) => {
     const range = getCellRange(cell)
+    // 2.1 这个单元格前面删了多少列
+    const deletedBefore = countDeletedBefore(normalizedColumns, range.colStart)
+    // 2.2 这个单元格自己覆盖的范围内删了多少列
+    const deletedInsideRange = countDeletedInsideRange(normalizedColumns, range.colStart, range.colEnd)
+    // 2.3 删完后还剩几列
+    const nextColSpan = cell.colSpan - deletedInsideRange
 
-    if (deletedRow < range.rowStart) {
-      return [
-        {
-          ...cell,
-          row: cell.row - 1,
-          merged: false,
-          mergeParentId: '',
-        },
-      ]
-    }
-
-    if (deletedRow > range.rowEnd) {
-      return [
-        {
-          ...cell,
-          merged: false,
-          mergeParentId: '',
-        },
-      ]
-    }
-
-    const nextRowSpan = cell.rowSpan - 1
-
-    if (nextRowSpan <= 0) {
+    if (nextColSpan <= 0) {
       return []
     }
 
     return [
       {
         ...cell,
-        rowSpan: nextRowSpan,
+        col: cell.col - deletedBefore,
+        colSpan: nextColSpan,
         merged: false,
         mergeParentId: '',
       },
     ]
   })
-  const nextRowHeights = [...table.rowHeights]
-  nextRowHeights.splice(deletedRow - 1, 1)
 
   return rebuildTableByVisibleCells(
-    table.rows - 1,
-    table.columns,
+    table.rows,
+    table.columns - normalizedColumns.length,
     nextVisibleCells,
-    [...table.columnWidths],
-    nextRowHeights,
+    // 同步删掉列宽
+    omitLineValues(table.columnWidths, normalizedColumns),
+    [...table.rowHeights],
   )
 }
 
@@ -526,56 +620,7 @@ export const deleteColumn = (table: EditorCanvasTable, cellId: string) => {
     return table
   }
 
-  if (table.columns <= 1) {
-    return null
-  }
-
-  const deletedColumn = activeCell.col
-  const nextVisibleCells = getVisibleCells(table).flatMap((cell) => {
-    const range = getCellRange(cell)
-
-    if (deletedColumn < range.colStart) {
-      return [
-        {
-          ...cell,
-          col: cell.col - 1,
-          merged: false,
-          mergeParentId: '',
-        },
-      ]
-    }
-
-    if (deletedColumn > range.colEnd) {
-      return [
-        {
-          ...cell,
-          merged: false,
-          mergeParentId: '',
-        },
-      ]
-    }
-
-    const nextColSpan = cell.colSpan - 1
-
-    if (nextColSpan <= 0) {
-      return []
-    }
-
-    return [
-      {
-        ...cell,
-        colSpan: nextColSpan,
-        merged: false,
-        mergeParentId: '',
-      },
-    ]
-  })
-  const nextColumnWidths = [...table.columnWidths]
-  nextColumnWidths.splice(deletedColumn - 1, 1)
-
-  return rebuildTableByVisibleCells(table.rows, table.columns - 1, nextVisibleCells, nextColumnWidths, [
-    ...table.rowHeights,
-  ])
+  return deleteColumns(table, [activeCell.col])
 }
 
 /**
