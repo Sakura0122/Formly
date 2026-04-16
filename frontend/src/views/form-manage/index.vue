@@ -16,6 +16,7 @@ import FormManageDeleteDialog from '@/views/form-manage/components/form-manage-d
 import FormManageMoveFormDialog from '@/views/form-manage/components/form-manage-move-form-dialog.vue'
 import FormManageRenameDialog from '@/views/form-manage/components/form-manage-rename-dialog.vue'
 import FormManageTreeNode, { type NodeAction } from '@/views/form-manage/components/form-manage-tree-node.vue'
+import { useFormManageExportPdf } from '@/views/form-manage/useFormManageExportPdf'
 
 defineOptions({
   name: 'FormManagePage',
@@ -31,6 +32,8 @@ type GroupOption = {
   label: string
 }
 
+type MoreAction = 'export-pdf'
+
 const router = useRouter()
 
 const searchKeyword = ref('')
@@ -40,6 +43,7 @@ const selectedNodeId = ref<FormEntityId | null>(null)
 const selectedNodeType = ref<FormCatalogNodeType | null>(null)
 const selectedFormDetail = ref<FormDefinitionFormDetail | null>(null)
 const treeRef = useTemplateRef('treeRef')
+const pdfExportRef = useTemplateRef<HTMLElement>('pdfExportRef')
 
 const collectGroupIds = (nodes: FormCatalogNode[], result: FormEntityId[] = []) => {
   nodes.forEach((node) => {
@@ -347,6 +351,16 @@ const handleDesignForm = () => {
   })
 }
 
+const { handleExportPdf } = useFormManageExportPdf()
+
+const handleMoreAction = async (command: MoreAction) => {
+  if (command !== 'export-pdf') {
+    return
+  }
+
+  await handleExportPdf(pdfExportRef.value, selectedFormDetail.value?.name)
+}
+
 watch(searchKeyword, (keyword) => {
   treeRef.value?.filter(keyword)
 })
@@ -459,6 +473,23 @@ watch(searchKeyword, (keyword) => {
           <div v-else class="text-sm text-slate-400">请选择左侧表单查看详情</div>
 
           <div class="flex items-center">
+            <el-dropdown
+              :disabled="!hasPublishedPreview"
+              placement="bottom-end"
+              trigger="hover"
+              @command="handleMoreAction"
+            >
+              <div class="form-manage-more-trigger cursor-pointer text-slate-500 hover:text-slate-700">
+                <Icon class="text-base" icon="solar:menu-dots-bold" />
+              </div>
+
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="export-pdf">导出 PDF</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+
             <el-button disabled plain>
               <Icon class="mr-1 text-base" icon="solar:settings-linear" />
               数据管理
@@ -498,6 +529,15 @@ watch(searchKeyword, (keyword) => {
       </div>
     </section>
 
+    <div
+      v-if="hasPublishedPreview"
+      ref="pdfExportRef"
+      class="pointer-events-none fixed top-0 w-max bg-white p-8"
+      style="left: -20000px"
+    >
+      <FormPreviewCanvas :table="publishedPreviewTable" mode="readonly" scene="print" />
+    </div>
+
     <FormManageCreateGroupDialog ref="createGroupDialogRef" @success="handleMutationSuccess" />
 
     <FormManageCreateFormDialog ref="createFormDialogRef" @success="handleMutationSuccess" />
@@ -509,3 +549,23 @@ watch(searchKeyword, (keyword) => {
     <FormManageDeleteDialog ref="deleteDialogRef" @success="handleMutationSuccess" />
   </div>
 </template>
+
+<style scoped>
+.form-manage-more-trigger {
+  outline: none;
+  box-shadow: none;
+  display: flex;
+  width: 32px;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s ease;
+}
+
+.form-manage-more-trigger:focus,
+.form-manage-more-trigger:focus-visible,
+.form-manage-more-trigger:active {
+  outline: none;
+  box-shadow: none;
+}
+</style>

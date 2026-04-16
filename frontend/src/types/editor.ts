@@ -86,6 +86,7 @@ export interface EditorCanvasTable {
 export type EditorSchema = EditorCanvasTable | null
 
 export type EditorFormPreviewMode = 'readonly' | 'interactive'
+export type EditorFormPreviewScene = 'preview' | 'print'
 
 export interface EditorHistorySnapshot {
   table: EditorCanvasTable | null

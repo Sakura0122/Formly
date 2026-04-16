@@ -3,35 +3,30 @@ import { Icon } from '@iconify/vue'
 import type { UploadFile, UploadUserFile } from 'element-plus'
 import { computed } from 'vue'
 
-import type { EditorFormPreviewMode, EditorFieldInstance } from '@/types/editor'
+import type { EditorFieldInstance, EditorFormPreviewMode, EditorFormPreviewScene } from '@/types/editor'
 
-const props = withDefaults(
-  defineProps<{
-    field: EditorFieldInstance
-    mode?: EditorFormPreviewMode
-    modelValue?: unknown
-  }>(),
-  {
-    mode: 'readonly',
-    modelValue: undefined,
-  },
-)
+const { field, mode = 'readonly', scene = 'preview', modelValue } = defineProps<{
+  field: EditorFieldInstance
+  mode?: EditorFormPreviewMode
+  scene?: EditorFormPreviewScene
+  modelValue?: unknown
+}>()
 
 const emit = defineEmits<{
   (e: 'update:modelValue', value: unknown): void
 }>()
 
 const previewValue = computed(() => {
-  if (['radio', 'checkbox', 'select'].includes(props.field.type)) {
-    return props.field.options[0]?.value ?? ''
+  if (['radio', 'checkbox', 'select'].includes(field.type)) {
+    return field.options[0]?.value ?? ''
   }
 
   return ''
 })
 
 const previewOptions = computed(() => {
-  return props.field.options.length
-    ? props.field.options
+  return field.options.length
+    ? field.options
     : [
         {
           label: '选项一',
@@ -40,31 +35,39 @@ const previewOptions = computed(() => {
       ]
 })
 
-const isReadonly = computed(() => props.mode === 'readonly')
-const isInteractive = computed(() => props.mode === 'interactive')
+const isReadonly = computed(() => mode === 'readonly')
+const isInteractive = computed(() => mode === 'interactive')
 
-const inlineCellPlaceholderText = computed(() => {
-  return props.field.placeholder || '/'
+const inputPlaceholderText = computed(() => {
+  return field.placeholder || '/'
+})
+
+const readonlyInlinePlaceholderText = computed(() => {
+  if (field.placeholder) {
+    return field.placeholder
+  }
+
+  return scene === 'print' ? '' : '/'
 })
 
 const selectPlaceholderText = computed(() => {
-  return props.field.placeholder || '请选择'
+  return field.placeholder || '请选择'
 })
 
 const dateDisplayText = computed(() => {
-  return props.field.placeholder || 'YYYY-MM-DD'
+  return field.placeholder || 'YYYY-MM-DD'
 })
 
 const textContent = computed(() => {
-  return props.field.textContent || '固定文字内容'
+  return field.textContent || '固定文字内容'
 })
 
 const imageUrl = computed(() => {
-  return props.field.imageUrl.trim()
+  return field.imageUrl.trim()
 })
 
 const textAlignClass = computed(() => {
-  switch (props.field.horizontalAlign) {
+  switch (field.horizontalAlign) {
     case 'left':
       return 'text-left'
     case 'right':
@@ -75,7 +78,7 @@ const textAlignClass = computed(() => {
 })
 
 const justifyClass = computed(() => {
-  switch (props.field.horizontalAlign) {
+  switch (field.horizontalAlign) {
     case 'left':
       return 'justify-start'
     case 'right':
@@ -86,7 +89,7 @@ const justifyClass = computed(() => {
 })
 
 const previewControlAlignClass = computed(() => {
-  switch (props.field.horizontalAlign) {
+  switch (field.horizontalAlign) {
     case 'left':
       return 'preview-cell-control-left'
     case 'right':
@@ -109,33 +112,33 @@ const previewControlStyle = computed<Record<string, string>>(() => {
 
 const inputStyle = computed<Record<string, string>>(() => {
   return {
-    textAlign: props.field.horizontalAlign,
+    textAlign: field.horizontalAlign,
   }
 })
 
 const textInputValue = computed({
-  get: () => (typeof props.modelValue === 'string' ? props.modelValue : ''),
+  get: () => (typeof modelValue === 'string' ? modelValue : ''),
   set: (value: string) => {
     emit('update:modelValue', value)
   },
 })
 
 const checkboxValue = computed({
-  get: () => (Array.isArray(props.modelValue) ? props.modelValue : []),
+  get: () => (Array.isArray(modelValue) ? modelValue : []),
   set: (value: string[]) => {
     emit('update:modelValue', value)
   },
 })
 
 const switchValue = computed({
-  get: () => Boolean(props.modelValue),
+  get: () => Boolean(modelValue),
   set: (value: boolean) => {
     emit('update:modelValue', value)
   },
 })
 
 const uploadFileList = computed(() => {
-  return Array.isArray(props.modelValue) ? (props.modelValue as UploadUserFile[]) : []
+  return Array.isArray(modelValue) ? (modelValue as UploadUserFile[]) : []
 })
 
 const handleUploadChange = (_file: UploadFile, fileList: UploadUserFile[]) => {
@@ -173,7 +176,7 @@ const handleUploadRemove = (_file: UploadFile, fileList: UploadUserFile[]) => {
   <div v-else-if="field.type === 'textbox'">
     <div v-if="isReadonly" class="flex min-h-6 w-full min-w-0 items-center px-2" :class="justifyClass">
       <div class="w-full wrap-break-word text-xs leading-5 text-slate-400" :class="textAlignClass">
-        {{ inlineCellPlaceholderText }}
+        {{ readonlyInlinePlaceholderText }}
       </div>
     </div>
     <el-input
@@ -182,7 +185,7 @@ const handleUploadRemove = (_file: UploadFile, fileList: UploadUserFile[]) => {
       class="preview-cell-control w-full min-w-0"
       :class="isInteractive ? previewControlAlignClass : ''"
       :input-style="inputStyle"
-      :placeholder="inlineCellPlaceholderText"
+      :placeholder="inputPlaceholderText"
       size="small"
       :style="isInteractive ? previewControlStyle : undefined"
     />
@@ -195,7 +198,7 @@ const handleUploadRemove = (_file: UploadFile, fileList: UploadUserFile[]) => {
       :class="justifyClass"
     >
       <div class="w-full wrap-break-word text-xs leading-5 text-slate-400" :class="textAlignClass">
-        {{ inlineCellPlaceholderText }}
+        {{ readonlyInlinePlaceholderText }}
       </div>
     </div>
     <el-input
@@ -204,7 +207,7 @@ const handleUploadRemove = (_file: UploadFile, fileList: UploadUserFile[]) => {
       class="preview-cell-control w-full min-w-0"
       :class="isInteractive ? previewControlAlignClass : ''"
       :input-style="inputStyle"
-      :placeholder="inlineCellPlaceholderText"
+      :placeholder="inputPlaceholderText"
       size="small"
       :style="isInteractive ? previewControlStyle : undefined"
       type="number"
@@ -273,7 +276,7 @@ const handleUploadRemove = (_file: UploadFile, fileList: UploadUserFile[]) => {
       class="w-full min-w-0"
       :class="isInteractive ? ['preview-cell-control', 'preview-select-control', previewControlAlignClass] : ''"
       :disabled="isReadonly"
-      :placeholder="isReadonly ? selectPlaceholderText : inlineCellPlaceholderText"
+      :placeholder="isReadonly ? selectPlaceholderText : inputPlaceholderText"
       size="small"
       style="width: 100%"
       :style="isInteractive ? previewControlStyle : undefined"
@@ -294,7 +297,7 @@ const handleUploadRemove = (_file: UploadFile, fileList: UploadUserFile[]) => {
       class="w-full"
       format="YYYY-MM-DD"
       :class="isInteractive ? ['preview-cell-control', previewControlAlignClass] : ''"
-      :placeholder="inlineCellPlaceholderText"
+      :placeholder="inputPlaceholderText"
       size="small"
       :style="isInteractive ? previewControlStyle : undefined"
       type="date"

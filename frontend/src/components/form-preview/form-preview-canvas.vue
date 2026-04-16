@@ -1,19 +1,21 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 
-import type { EditorCanvasCell, EditorCanvasTable, EditorFieldInstance, EditorFormPreviewMode } from '@/types/editor'
+import type {
+  EditorCanvasCell,
+  EditorCanvasTable,
+  EditorFieldInstance,
+  EditorFormPreviewMode,
+  EditorFormPreviewScene,
+} from '@/types/editor'
 import { getVisibleCells } from '@/views/editor/utils/table'
 import FormPreviewField from '@/components/form-preview/form-preview-field.vue'
 
-const props = withDefaults(
-  defineProps<{
-    table: EditorCanvasTable | null
-    mode?: EditorFormPreviewMode
-  }>(),
-  {
-    mode: 'readonly',
-  },
-)
+const { table, mode = 'readonly', scene = 'preview' } = defineProps<{
+  table: EditorCanvasTable | null
+  mode?: EditorFormPreviewMode
+  scene?: EditorFormPreviewScene
+}>()
 
 const fieldValueMap = ref<Record<string, unknown>>({})
 const activeCellId = ref('')
@@ -32,11 +34,11 @@ const buildFieldInitialValue = (field: EditorFieldInstance) => {
 }
 
 watch(
-  () => props.table,
-  (table) => {
+  () => table,
+  (currentTable) => {
     const nextValues: Record<string, unknown> = {}
 
-    getVisibleCells(table).forEach((cell) => {
+    getVisibleCells(currentTable).forEach((cell) => {
       cell.fields.forEach((field) => {
         nextValues[field.uuid] = fieldValueMap.value[field.uuid] ?? buildFieldInitialValue(field)
       })
@@ -49,9 +51,8 @@ watch(
   },
 )
 
-
 const visibleCells = computed(() => {
-  return getVisibleCells(props.table)
+  return getVisibleCells(table)
 })
 
 const isEditableCell = (cell: EditorCanvasCell) => {
@@ -61,7 +62,7 @@ const isEditableCell = (cell: EditorCanvasCell) => {
 watch(
   visibleCells,
   (cellList) => {
-    if (props.mode !== 'interactive') {
+    if (mode !== 'interactive') {
       activeCellId.value = ''
       return
     }
@@ -80,16 +81,16 @@ watch(
 )
 
 const gridTemplateColumns = computed(() => {
-  return (props.table?.columnWidths ?? []).map((width) => `${width}px`).join(' ')
+  return (table?.columnWidths ?? []).map((width) => `${width}px`).join(' ')
 })
 
 // 行高使用 minmax(用户设定行高, auto)，内容超出时由 CSS Grid 自动撑开
 const gridTemplateRows = computed(() => {
-  return (props.table?.rowHeights ?? []).map((height) => `minmax(${height}px, auto)`).join(' ')
+  return (table?.rowHeights ?? []).map((height) => `minmax(${height}px, auto)`).join(' ')
 })
 
 const tableWidth = computed(() => {
-  return (props.table?.columnWidths ?? []).reduce((total, width) => total + width, 0)
+  return (table?.columnWidths ?? []).reduce((total, width) => total + width, 0)
 })
 
 const updateFieldValue = (fieldId: string, value: unknown) => {
@@ -100,7 +101,7 @@ const updateFieldValue = (fieldId: string, value: unknown) => {
 }
 
 const handleCellClick = (cell: EditorCanvasCell) => {
-  if (props.mode !== 'interactive' || !isEditableCell(cell)) {
+  if (mode !== 'interactive' || !isEditableCell(cell)) {
     return
   }
 
@@ -144,6 +145,7 @@ const handleCellClick = (cell: EditorCanvasCell) => {
             <FormPreviewField
               :field="field"
               :mode="mode"
+              :scene="scene"
               :model-value="fieldValueMap[field.uuid]"
               @update:model-value="updateFieldValue(field.uuid, $event)"
             />
