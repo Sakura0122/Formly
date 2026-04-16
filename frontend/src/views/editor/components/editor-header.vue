@@ -82,11 +82,15 @@ const handlePreview = () => {
       formId: String(currentFormId.value),
     },
   })
-  const previewWindow = window.open(previewRoute.href, '_blank', 'noopener')
+  const previewWindow = window.open(previewRoute.href, 'formly-editor-preview')
 
   if (!previewWindow) {
     ElMessage.warning('预览窗口被拦截，请允许浏览器打开新窗口')
+    return
   }
+
+  previewWindow.opener = null
+  previewWindow.focus()
 }
 
 const handleMoreAction = (command: MoreAction) => {
@@ -138,8 +142,7 @@ const handlePublish = async () => {
     return
   }
 
-  const publishedMessage =
-    res.versionNo === null ? '已保存并发布' : `已保存并发布 ${formatVersionLabel(res.versionNo)}`
+  const publishedMessage = res.versionNo === null ? '已保存并发布' : `已保存并发布 ${formatVersionLabel(res.versionNo)}`
   ElMessage.success(publishedMessage)
 }
 </script>
