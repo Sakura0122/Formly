@@ -303,40 +303,107 @@ export const useEditorStore = defineStore('editor', () => {
   }
 
   /**
-   * 向目标单元格追加一个新字段实例。
+   * 组件点击优先复用当前选区；没有多选时退回到当前焦点单元格。
    */
-  const appendFieldToCell = (cellId: string, type: EditorPaletteItem['type']) => {
-    if (!table.value) {
-      ElMessage.warning('请先在画布区域右键新建表格')
-      return
-    }
+  const getSelectedPlacementCellIds = () => {
+    const targetCellIds = selectedCellIds.value.length
+      ? [...selectedCellIds.value]
+      : activeCellId.value
+        ? [activeCellId.value]
+        : []
 
-    const nextField = createFieldInstance(type)
-    const changed = commitTableChange((currentTable) =>
-      replaceCell(currentTable, cellId, (cell) => ({
-        ...cell,
-        fields: [...cell.fields, nextField],
-      })),
-    )
-
-    if (!changed) {
-      return
-    }
-
-    collapseSelectionToCell(cellId)
-    activeFieldId.value = nextField.uuid
+    return targetCellIds.filter((cellId) => Boolean(getCellById(table.value, cellId)))
   }
 
   /**
-   * 组件库点击添加，要求当前已存在焦点单元格。
+   * 拖拽命中当前多选区域时，整个选区一起追加；拖到选区外则只处理落点格。
+   */
+  const getDropPlacementCellIds = (cellId: string) => {
+    if (selectedCellIds.value.length > 1 && selectedCellIds.value.includes(cellId)) {
+      return getSelectedPlacementCellIds()
+    }
+
+    return getCellById(table.value, cellId) ? [cellId] : []
+  }
+
+  /**
+   * 向目标单元格追加一个或多个新字段实例。
+   */
+  const appendFieldToCells = (cellIds: string[], type: EditorPaletteItem['type']) => {
+    if (!table.value) {
+      ElMessage.warning('请先在画布区域右键新建表格')
+      return false
+    }
+
+    const targetCellIds = [...new Set(cellIds)].filter((cellId) => Boolean(getCellById(table.value, cellId)))
+
+    if (!targetCellIds.length) {
+      return false
+    }
+
+    const appendedFieldMap = new Map(
+      targetCellIds.map((cellId) => {
+        return [cellId, createFieldInstance(type)]
+      }),
+    )
+    const changed = commitTableChange((currentTable) => {
+      if (!currentTable) {
+        return currentTable
+      }
+
+      return {
+        ...currentTable,
+        cells: currentTable.cells.map((cell) => {
+          const nextField = appendedFieldMap.get(cell.id)
+
+          if (!nextField) {
+            return cell
+          }
+
+          return {
+            ...cell,
+            fields: [...cell.fields, nextField],
+          }
+        }),
+      }
+    })
+
+    if (!changed) {
+      return false
+    }
+
+    const focusCellId = targetCellIds.includes(activeCellId.value) ? activeCellId.value : (targetCellIds[0] ?? '')
+
+    if (!focusCellId) {
+      return true
+    }
+
+    if (targetCellIds.length === 1) {
+      collapseSelectionToCell(focusCellId)
+      activeFieldId.value = appendedFieldMap.get(focusCellId)?.uuid ?? ''
+      return true
+    }
+
+    activeCellId.value = focusCellId
+    selectedCellIds.value = [...targetCellIds]
+    selectionAnchorCellId.value = selectionAnchorCellId.value || focusCellId
+    activeFieldId.value = appendedFieldMap.get(focusCellId)?.uuid ?? ''
+
+    return true
+  }
+
+  /**
+   * 组件库点击优先按当前选区批量追加；没有多选时退回到焦点单元格。
    */
   const selectItem = (item: EditorPaletteItem) => {
-    if (!activeCellId.value) {
+    const targetCellIds = getSelectedPlacementCellIds()
+
+    if (!targetCellIds.length) {
       ElMessage.warning('请先选择单元格')
       return
     }
 
-    appendFieldToCell(activeCellId.value, item.type)
+    appendFieldToCells(targetCellIds, item.type)
   }
 
   /**
@@ -344,7 +411,7 @@ export const useEditorStore = defineStore('editor', () => {
    * @param payload 放置组件参数
    */
   const placeItem = (payload: EditorCanvasDropPayload) => {
-    appendFieldToCell(payload.cellId, payload.type)
+    appendFieldToCells(getDropPlacementCellIds(payload.cellId), payload.type)
   }
 
   /**
