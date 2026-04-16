@@ -211,12 +211,12 @@ const handleUploadRemove = (_file: UploadFile, fileList: UploadUserFile[]) => {
     />
   </div>
 
-  <div v-else-if="field.type === 'radio'" class="flex w-full" :class="justifyClass">
+  <div v-else-if="field.type === 'radio'" class="flex w-full py-1" :class="justifyClass">
     <div v-if="isReadonly" class="flex min-w-0 max-w-full flex-col gap-0.5 py-0">
       <div
         v-for="option in previewOptions"
         :key="option.value"
-        class="flex min-w-0 items-center gap-1 text-[11px] leading-4"
+        class="flex min-w-0 items-center gap-1 text-xs leading-4"
         :class="option.value === previewValue ? 'text-slate-700' : 'text-slate-400'"
       >
         <span
@@ -225,7 +225,7 @@ const handleUploadRemove = (_file: UploadFile, fileList: UploadUserFile[]) => {
         >
           <span v-if="option.value === previewValue" class="h-1.5 w-1.5 rounded-full bg-sky-500" />
         </span>
-        <span class="min-w-0 truncate">{{ option.label }}</span>
+        <span class="min-w-0 flex-1 whitespace-normal break-all">{{ option.label }}</span>
       </div>
     </div>
     <el-radio-group
@@ -239,12 +239,12 @@ const handleUploadRemove = (_file: UploadFile, fileList: UploadUserFile[]) => {
     </el-radio-group>
   </div>
 
-  <div v-else-if="field.type === 'checkbox'" class="flex w-full" :class="justifyClass">
+  <div v-else-if="field.type === 'checkbox'" class="flex w-full py-1" :class="justifyClass">
     <div v-if="isReadonly" class="flex min-w-0 max-w-full flex-col gap-0.5 py-0">
       <div
         v-for="option in previewOptions"
         :key="option.value"
-        class="flex min-w-0 items-center gap-1 text-[11px] leading-4"
+        class="flex min-w-0 items-center gap-1 text-xs leading-4"
         :class="option.value === previewValue ? 'text-slate-700' : 'text-slate-400'"
       >
         <span
@@ -253,7 +253,7 @@ const handleUploadRemove = (_file: UploadFile, fileList: UploadUserFile[]) => {
         >
           <span v-if="option.value === previewValue" class="h-2 w-2 rounded-sm bg-sky-500" />
         </span>
-        <span class="min-w-0 truncate">{{ option.label }}</span>
+        <span class="min-w-0 flex-1 whitespace-normal break-all">{{ option.label }}</span>
       </div>
     </div>
     <el-checkbox-group
@@ -405,15 +405,22 @@ const handleUploadRemove = (_file: UploadFile, fileList: UploadUserFile[]) => {
   :deep(.el-radio),
   :deep(.el-checkbox) {
     width: 100%;
-    height: 24px;
+    min-height: 24px;
+    height: auto;
     margin-right: 0;
     justify-content: flex-start;
+    align-items: center;
   }
 
   :deep(.el-radio__label),
   :deep(.el-checkbox__label) {
     min-width: 0;
     padding-left: 6px;
+    white-space: normal;
+    line-height: 16px;
+    overflow: visible;
+    text-overflow: clip;
+    word-break: break-all;
   }
 }
 

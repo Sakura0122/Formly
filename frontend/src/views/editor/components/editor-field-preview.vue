@@ -109,12 +109,12 @@ const justifyClass = computed(() => {
     </div>
   </div>
 
-  <div v-else-if="field.type === 'radio'" class="flex w-full" :class="justifyClass">
+  <div v-else-if="field.type === 'radio'" class="flex w-full py-1" :class="justifyClass">
     <div class="flex min-w-0 max-w-full flex-col gap-0.5 py-0.5">
       <div
         v-for="option in previewOptions"
         :key="option.value"
-        class="flex min-w-0 items-center gap-1 text-[11px] leading-4"
+        class="flex min-w-0 items-center gap-1 text-xs leading-4"
         :class="option.value === previewValue ? 'text-slate-700' : 'text-slate-400'"
       >
         <span
@@ -123,17 +123,17 @@ const justifyClass = computed(() => {
         >
           <span v-if="option.value === previewValue" class="h-1.5 w-1.5 rounded-full bg-sky-500" />
         </span>
-        <span class="min-w-0 truncate">{{ option.label }}</span>
+        <span class="min-w-0 flex-1 whitespace-normal break-all">{{ option.label }}</span>
       </div>
     </div>
   </div>
 
-  <div v-else-if="field.type === 'checkbox'" class="flex w-full" :class="justifyClass">
+  <div v-else-if="field.type === 'checkbox'" class="flex w-full py-1" :class="justifyClass">
     <div class="flex min-w-0 max-w-full flex-col gap-0.5 py-0.5">
       <div
         v-for="option in previewOptions"
         :key="option.value"
-        class="flex min-w-0 items-center gap-1 text-[11px] leading-4"
+        class="flex min-w-0 items-center gap-1 text-xs leading-4"
         :class="option.value === previewValue ? 'text-slate-700' : 'text-slate-400'"
       >
         <span
@@ -142,7 +142,7 @@ const justifyClass = computed(() => {
         >
           <span v-if="option.value === previewValue" class="h-2 w-2 rounded-sm bg-sky-500" />
         </span>
-        <span class="min-w-0 truncate">{{ option.label }}</span>
+        <span class="min-w-0 flex-1 whitespace-normal break-all">{{ option.label }}</span>
       </div>
     </div>
   </div>
