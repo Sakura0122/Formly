@@ -38,11 +38,6 @@ public class FormVersion {
     private String schemaJson;
 
     /**
-     * 发布时间
-     */
-    private LocalDateTime publishedAt;
-
-    /**
      * 创建人标识
      */
     @TableField(fill = FieldFill.INSERT)

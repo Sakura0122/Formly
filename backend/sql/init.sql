@@ -50,7 +50,6 @@ CREATE TABLE `form_version` (
   `form_id` BIGINT NOT NULL COMMENT '所属表单ID',
   `version_no` INT NOT NULL COMMENT '递增版本号',
   `schema_json` JSON NOT NULL COMMENT '整份编辑器Schema',
-  `published_at` DATETIME NULL DEFAULT NULL COMMENT '发布时间',
   `created_by` VARCHAR(64) NOT NULL DEFAULT '' COMMENT '创建人标识',
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
@@ -58,7 +57,6 @@ CREATE TABLE `form_version` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_form_version_form_id_version_no` (`form_id`, `version_no`),
   KEY `idx_form_version_form_created_at` (`form_id`, `created_at`),
-  KEY `idx_form_version_published_at` (`published_at`),
   KEY `idx_form_version_deleted_at` (`deleted_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='表单历史版本';
 

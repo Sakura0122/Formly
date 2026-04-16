@@ -5,6 +5,7 @@ import type {
   FormDefinitionCreateReq,
   FormDefinitionEditorDetail,
   FormDefinitionFormDetail,
+  FormDefinitionHistoryItem,
   FormDefinitionUpdateReq,
 } from './type'
 
@@ -15,6 +16,10 @@ export const formDefinitionApi = {
   },
   async getForm(id: FormEntityId) {
     const res = await request.get<FormDefinitionFormDetail>(`/form-definitions/form/${id}`)
+    return res.data
+  },
+  async getHistory(id: FormEntityId) {
+    const res = await request.get<FormDefinitionHistoryItem[]>(`/form-definitions/${id}/history`)
     return res.data
   },
   async create(data: FormDefinitionCreateReq) {

@@ -8,12 +8,14 @@ import com.sakura.formly.model.dto.formdefinition.FormSchemaReq;
 import com.sakura.formly.model.dto.formdefinition.FormDefinitionUpdateReq;
 import com.sakura.formly.model.vo.formdefinition.FormDefinitionEditorVo;
 import com.sakura.formly.model.vo.formdefinition.FormDefinitionFormVo;
+import com.sakura.formly.model.vo.formdefinition.FormDefinitionHistoryItemVo;
 import com.sakura.formly.model.vo.formdefinition.FormDefinitionListVo;
 import com.sakura.formly.model.vo.formdefinition.FormDefinitionPersistVo;
 import com.sakura.formly.service.FormDefinitionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -57,6 +59,12 @@ public class FormDefinitionController {
     @GetMapping("/form/{id}")
     public Result<FormDefinitionFormVo> form(@PathVariable Long id) {
         return Result.success(formDefinitionService.getFormPreviewDetail(id));
+    }
+
+    @Operation(summary = "查询表单历史版本列表")
+    @GetMapping("/{id}/history")
+    public Result<List<FormDefinitionHistoryItemVo>> history(@PathVariable Long id) {
+        return Result.success(formDefinitionService.getFormHistory(id));
     }
 
     @Operation(summary = "分页查询表单定义")

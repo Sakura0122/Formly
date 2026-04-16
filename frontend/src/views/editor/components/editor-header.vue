@@ -7,6 +7,12 @@ import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 
+type MoreAction = 'history'
+
+const emit = defineEmits<{
+  (e: 'open-history'): void
+}>()
+
 const router = useRouter()
 const editorStore = useEditorStore()
 
@@ -52,6 +58,7 @@ const statusLabel = computed(() => {
 const previewDisabled = computed(() => !currentFormId.value || !hasSavedDraft.value)
 const saveDisabled = computed(() => !currentFormId.value || !editorStore.table || !dirty.value)
 const publishDisabled = computed(() => !currentFormId.value || !editorStore.table)
+const historyDisabled = computed(() => !currentFormId.value || !publishedVersionId.value)
 const formatVersionLabel = (versionNo: number) => `V${versionNo}`
 
 // 返回
@@ -80,6 +87,14 @@ const handlePreview = () => {
   if (!previewWindow) {
     ElMessage.warning('预览窗口被拦截，请允许浏览器打开新窗口')
   }
+}
+
+const handleMoreAction = (command: MoreAction) => {
+  if (command !== 'history' || historyDisabled.value) {
+    return
+  }
+
+  emit('open-history')
 }
 
 // 保存
@@ -176,7 +191,19 @@ const handlePublish = async () => {
       </button>
     </div>
 
-    <div class="flex flex-wrap items-center justify-start lg:justify-end">
+    <div class="flex flex-wrap items-center justify-start gap-2 lg:justify-end">
+      <el-dropdown :disabled="historyDisabled" placement="bottom-end" trigger="hover" @command="handleMoreAction">
+        <div class="editor-header-more-trigger cursor-pointer text-slate-500 hover:text-slate-700">
+          <Icon class="text-base" icon="solar:menu-dots-bold" />
+        </div>
+
+        <template #dropdown>
+          <el-dropdown-menu>
+            <el-dropdown-item command="history">历史版本</el-dropdown-item>
+          </el-dropdown-menu>
+        </template>
+      </el-dropdown>
+
       <el-button :disabled="previewDisabled" plain @click="handlePreview">
         <Icon class="mr-1 text-base" icon="solar:eye-linear" />
         预览
@@ -192,3 +219,23 @@ const handlePublish = async () => {
     </div>
   </header>
 </template>
+
+<style scoped>
+.editor-header-more-trigger {
+  outline: none;
+  box-shadow: none;
+  display: flex;
+  width: 32px;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s ease;
+}
+
+.editor-header-more-trigger:focus,
+.editor-header-more-trigger:focus-visible,
+.editor-header-more-trigger:active {
+  outline: none;
+  box-shadow: none;
+}
+</style>

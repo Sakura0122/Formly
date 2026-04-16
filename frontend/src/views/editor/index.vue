@@ -13,7 +13,9 @@ import EditorConfigPanel from '@/views/editor/components/editor-config-panel.vue
 import EditorContextMenu from '@/views/editor/components/editor-context-menu.vue'
 import EditorCreateTableDialog from '@/views/editor/components/editor-create-table-dialog.vue'
 import EditorHeader from '@/views/editor/components/editor-header.vue'
+import EditorHistoryPanel from '@/views/editor/components/editor-history-panel.vue'
 import { useEventListener } from '@vueuse/core'
+import { storeToRefs } from 'pinia'
 import { onBeforeUnmount, ref, useTemplateRef, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
@@ -22,7 +24,10 @@ defineOptions({
 })
 
 const editorStore = useEditorStore()
+const { currentFormId, publishedVersionId } = storeToRefs(editorStore)
 const route = useRoute()
+
+const historyMode = ref(false)
 
 const tableDialogRef = useTemplateRef('tableDialogRef')
 const openTableDialog = (mode: 'create' | 'rebuild') => {
@@ -114,13 +119,32 @@ const handleContextCommand = (payload: EditorContextMenuActionPayload) => {
 }
 
 const { loading: pageLoading, run: getEditorApi } = useRequest(formDefinitionApi.getEditor)
+
+const resetHistoryState = () => {
+  historyMode.value = false
+}
+
+const handleOpenHistory = () => {
+  if (!currentFormId.value || !publishedVersionId.value) {
+    return
+  }
+
+  historyMode.value = true
+}
+
+const handleExitHistory = () => {
+  historyMode.value = false
+}
+
 const loadEditor = async (formId: string) => {
   if (!formId) {
+    resetHistoryState()
     editorStore.resetEditorSession()
     return
   }
 
   pageLoading.value = true
+  resetHistoryState()
   editorStore.resetEditorSession()
 
   const editorDetail = await getEditorApi(formId)
@@ -138,26 +162,37 @@ watch(
 )
 
 onBeforeUnmount(() => {
+  resetHistoryState()
   editorStore.resetEditorSession()
 })
 </script>
 
 <template>
   <div v-loading="pageLoading" class="flex h-screen flex-col overflow-hidden bg-slate-100">
-    <EditorHeader />
+    <EditorHeader @open-history="handleOpenHistory" />
 
     <main class="flex min-h-0 flex-1 gap-4 overflow-hidden p-4 lg:p-5">
-      <div class="min-h-0 w-29 shrink-0">
-        <EditorComponentPalette @select-item="editorStore.selectItem" />
-      </div>
+      <template v-if="historyMode">
+        <EditorHistoryPanel
+          :form-id="currentFormId"
+          :published-version-id="publishedVersionId"
+          @exit="handleExitHistory"
+        />
+      </template>
 
-      <div class="min-w-0 min-h-0 flex-1">
-        <EditorCanvas @context-menu="handleCanvasContextMenu" />
-      </div>
+      <template v-else>
+        <div class="min-h-0 w-29 shrink-0">
+          <EditorComponentPalette @select-item="editorStore.selectItem" />
+        </div>
 
-      <div class="min-h-0 w-80 shrink-0">
-        <EditorConfigPanel />
-      </div>
+        <div class="min-w-0 min-h-0 flex-1">
+          <EditorCanvas @context-menu="handleCanvasContextMenu" />
+        </div>
+
+        <div class="min-h-0 w-80 shrink-0">
+          <EditorConfigPanel />
+        </div>
+      </template>
     </main>
 
     <EditorCreateTableDialog ref="tableDialogRef" @confirm="editorStore.createTable" />

@@ -19,6 +19,7 @@ import com.sakura.formly.model.entity.FormDefinition;
 import com.sakura.formly.model.entity.FormVersion;
 import com.sakura.formly.model.vo.formdefinition.FormDefinitionEditorVo;
 import com.sakura.formly.model.vo.formdefinition.FormDefinitionFormVo;
+import com.sakura.formly.model.vo.formdefinition.FormDefinitionHistoryItemVo;
 import com.sakura.formly.model.vo.formdefinition.FormDefinitionListVo;
 import com.sakura.formly.model.vo.formdefinition.FormDefinitionPersistVo;
 import com.sakura.formly.model.vo.formdefinition.FormSimpleVo;
@@ -27,7 +28,6 @@ import com.sakura.formly.service.FormGroupService;
 import com.sakura.formly.service.FormSubmissionService;
 import com.sakura.formly.service.FormVersionService;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 import lombok.RequiredArgsConstructor;
@@ -118,6 +118,27 @@ public class FormDefinitionServiceImpl extends ServiceImpl<FormDefinitionMapper,
         formDefinitionFormVo.setPublishedVersionNo(ObjectUtil.isNull(publishedVersion) ? null : publishedVersion.getVersionNo());
         formDefinitionFormVo.setSchema(getCurrentSchema(ObjectUtil.isNull(publishedVersion) ? null : publishedVersion.getSchemaJson()));
         return formDefinitionFormVo;
+    }
+
+    @Override
+    public List<FormDefinitionHistoryItemVo> getFormHistory(Long id) {
+        getFormDefinitionById(id);
+
+        return formVersionService.lambdaQuery()
+                .eq(FormVersion::getFormId, id)
+                .orderByDesc(FormVersion::getVersionNo)
+                .list()
+                .stream()
+                .map(formVersion -> {
+                    FormDefinitionHistoryItemVo historyItemVo = new FormDefinitionHistoryItemVo();
+                    historyItemVo.setId(formVersion.getId());
+                    historyItemVo.setVersionNo(formVersion.getVersionNo());
+                    historyItemVo.setSchema(getCurrentSchema(formVersion.getSchemaJson()));
+                    historyItemVo.setCreatedAt(formVersion.getCreatedAt());
+                    historyItemVo.setCreatedBy(formVersion.getCreatedBy());
+                    return historyItemVo;
+                })
+                .toList();
     }
 
     @Override
@@ -278,7 +299,6 @@ public class FormDefinitionServiceImpl extends ServiceImpl<FormDefinitionMapper,
         formVersion.setFormId(formId);
         formVersion.setVersionNo(nextVersionNo);
         formVersion.setSchemaJson(schemaJson);
-        formVersion.setPublishedAt(LocalDateTime.now());
         formVersionService.save(formVersion);
 
         return formVersion;

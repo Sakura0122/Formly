@@ -13,10 +13,16 @@ import { useEditorStore } from '@/stores/editor'
 import type {
   EditorCanvasContextMenuPayload,
   EditorCanvasSelectionPayload,
+  EditorCanvasTable,
   EditorComponentType,
 } from '@/types/editor'
 import EditorFieldPreview from '@/views/editor/components/editor-field-preview.vue'
 import { buildSelectionPayload, getCellRange, getVisibleCells } from '@/views/editor/utils/table'
+
+const { table: readonlyTable = null, readonly = false } = defineProps<{
+  table?: EditorCanvasTable | null
+  readonly?: boolean
+}>()
 
 const emit = defineEmits<{
   /** 右键菜单 */
@@ -24,7 +30,33 @@ const emit = defineEmits<{
 }>()
 
 const editorStore = useEditorStore()
-const { activeCellId, activeFieldId, selectedCellIds, selectionAnchorCellId, table } = storeToRefs(editorStore)
+const {
+  activeCellId: storeActiveCellId,
+  activeFieldId: storeActiveFieldId,
+  selectedCellIds: storeSelectedCellIds,
+  selectionAnchorCellId: storeSelectionAnchorCellId,
+  table: storeTable,
+} = storeToRefs(editorStore)
+
+const canvasTable = computed(() => {
+  return readonly ? readonlyTable : storeTable.value
+})
+
+const activeCellId = computed(() => {
+  return readonly ? '' : storeActiveCellId.value
+})
+
+const activeFieldId = computed(() => {
+  return readonly ? '' : storeActiveFieldId.value
+})
+
+const selectedCellIds = computed(() => {
+  return readonly ? [] : storeSelectedCellIds.value
+})
+
+const selectionAnchorCellId = computed(() => {
+  return readonly ? '' : storeSelectionAnchorCellId.value
+})
 
 // 框选的锚点单元格id
 const selectionDraggingAnchorId = ref('')
@@ -53,7 +85,7 @@ const toColumnLabel = (index: number) => {
 
 // {"index": 0, "columnNumber": 1, "label": "A", "width": 0}
 const columnHeaders = computed(() => {
-  return Array.from({ length: table.value?.columns ?? 0 }, (_, index) => {
+  return Array.from({ length: canvasTable.value?.columns ?? 0 }, (_, index) => {
     return {
       index,
       columnNumber: index + 1,
@@ -66,27 +98,27 @@ const columnHeaders = computed(() => {
 
 // [{index: 0, rowNumber: 1, height: 25}]
 const rowHeaders = computed(() => {
-  return Array.from({ length: table.value?.rows ?? 0 }, (_, index) => {
+  return Array.from({ length: canvasTable.value?.rows ?? 0 }, (_, index) => {
     return {
       index,
       rowNumber: index + 1,
-      height: table.value?.rowHeights[index] ?? EDITOR_TABLE_MIN_ROW_HEIGHT,
+      height: canvasTable.value?.rowHeights[index] ?? EDITOR_TABLE_MIN_ROW_HEIGHT,
     }
   })
 })
 
 const visibleCells = computed(() => {
-  return getVisibleCells(table.value)
+  return getVisibleCells(canvasTable.value)
 })
 
 // 自适应列宽计算 [120, 120, 120]
 const displayColumnWidths = computed(() => {
-  if (!table.value) {
+  if (!canvasTable.value) {
     return []
   }
 
   // 原始列宽数组（用户设置/默认值）
-  const rawWidths = table.value.columnWidths
+  const rawWidths = canvasTable.value.columnWidths
   // 所有列宽之和
   const totalWidth = rawWidths.reduce((total, width) => total + width, 0)
   // 可用宽度（视口宽度 - 行号列 - padding）
@@ -114,7 +146,7 @@ const displayColumnHeaders = computed(() => {
   return columnHeaders.value.map((column, index) => {
     return {
       ...column,
-      width: displayColumnWidths.value[index] ?? table.value?.columnWidths[index] ?? 0,
+      width: displayColumnWidths.value[index] ?? canvasTable.value?.columnWidths[index] ?? 0,
     }
   })
 })
@@ -180,10 +212,14 @@ const multiSelectionBounds = computed(() => {
  * @param targetCellId 终点格
  */
 const emitRangeSelection = (anchorCellId: string, targetCellId: string) => {
-  editorStore.applySelection(buildSelectionPayload(table.value, anchorCellId, targetCellId))
+  editorStore.applySelection(buildSelectionPayload(canvasTable.value, anchorCellId, targetCellId))
 }
 
 const handleCellMouseDown = (event: MouseEvent, cellId: string) => {
+  if (readonly) {
+    return
+  }
+
   // 0 代表左键，1 通常是中键，2 是右键
   if (event.button !== 0) {
     return
@@ -203,6 +239,10 @@ const handleCellMouseDown = (event: MouseEvent, cellId: string) => {
 }
 
 const handleCellMouseEnter = (cellId: string) => {
+  if (readonly) {
+    return
+  }
+
   // 是否正在拖选
   // 如果锚点为空，说明用户只是普通移动鼠标，并没有按住鼠标在拖选
   if (!selectionDraggingAnchorId.value) {
@@ -213,6 +253,10 @@ const handleCellMouseEnter = (cellId: string) => {
 }
 
 const handleCanvasBlankMouseDown = (event: MouseEvent) => {
+  if (readonly) {
+    return
+  }
+
   if (event.button !== 0 || event.target !== event.currentTarget) {
     return
   }
@@ -226,6 +270,10 @@ const handleCanvasBlankMouseDown = (event: MouseEvent) => {
  * @param fieldId 组件id
  */
 const handleFieldClick = (cellId: string, fieldId: string) => {
+  if (readonly) {
+    return
+  }
+
   // 把当前单元格设为选中状态
   editorStore.applySelection(createSingleSelection(cellId))
   // 选中组件
@@ -236,6 +284,10 @@ const handleFieldClick = (cellId: string, fieldId: string) => {
 }
 
 const handleDrop = (event: DragEvent, cellId: string) => {
+  if (readonly) {
+    return
+  }
+
   const rawPayload = event.dataTransfer?.getData('application/json')
 
   if (!rawPayload) {
@@ -256,7 +308,11 @@ const handleDrop = (event: DragEvent, cellId: string) => {
 
 // 打开右键菜单
 const handleContextMenu = (event: MouseEvent, cellId = '') => {
-  if (cellId && table.value && !selectedCellIds.value.includes(cellId)) {
+  if (readonly) {
+    return
+  }
+
+  if (cellId && canvasTable.value && !selectedCellIds.value.includes(cellId)) {
     editorStore.collapseSelectionToCell(cellId)
   }
 
@@ -273,11 +329,15 @@ const handleContextMenu = (event: MouseEvent, cellId = '') => {
  * @param index 列索引
  */
 const startColumnResize = (event: MouseEvent, index: number) => {
+  if (readonly) {
+    return
+  }
+
   resizeState.value = {
     type: 'column',
     index,
     startPointer: event.clientX,
-    startSize: table.value?.columnWidths[index] ?? EDITOR_TABLE_MIN_COLUMN_WIDTH,
+    startSize: canvasTable.value?.columnWidths[index] ?? EDITOR_TABLE_MIN_COLUMN_WIDTH,
   }
 }
 
@@ -287,11 +347,15 @@ const startColumnResize = (event: MouseEvent, index: number) => {
  * @param index 行索引
  */
 const startRowResize = (event: MouseEvent, index: number) => {
+  if (readonly) {
+    return
+  }
+
   resizeState.value = {
     type: 'row',
     index,
     startPointer: event.clientY,
-    startSize: table.value?.rowHeights[index] ?? EDITOR_TABLE_MIN_ROW_HEIGHT,
+    startSize: canvasTable.value?.rowHeights[index] ?? EDITOR_TABLE_MIN_ROW_HEIGHT,
   }
 }
 
@@ -330,20 +394,20 @@ useEventListener(window, 'mouseup', clearDraggingState)
 </script>
 
 <template>
-  <section class="flex h-full min-h-0 border border-slate-200 bg-white">
-    <div class="h-full w-full min-h-0" @contextmenu.prevent="handleContextMenu($event)">
-      <template v-if="table">
-        <el-scrollbar class="h-full w-full">
-          <div ref="canvasViewportRef" class="min-h-full p-4 text-center" @mousedown="handleCanvasBlankMouseDown">
-            <div class="inline-block text-left">
-              <div
-                class="relative grid shrink-0 border-l border-t border-slate-300 bg-white"
-                :style="{
-                  gridTemplateColumns,
-                  gridTemplateRows,
-                  width: `${displayTableWidth}px`,
-                }"
-              >
+  <section class="h-full min-h-0 bg-white">
+    <template v-if="canvasTable">
+      <el-scrollbar class="h-full w-full">
+        <div ref="canvasViewportRef" class="min-h-full p-4 text-center" @mousedown="handleCanvasBlankMouseDown">
+          <div class="inline-block text-left">
+            <div
+              class="relative grid shrink-0 border-l border-t border-slate-300 bg-white"
+              :style="{
+                gridTemplateColumns,
+                gridTemplateRows,
+                width: `${displayTableWidth}px`,
+              }"
+              @contextmenu.stop.prevent="handleContextMenu($event)"
+            >
                 <!-- 左上角的空白格 -->
                 <div
                   class="border-r border-b border-slate-300 bg-[#f2f6f7]"
@@ -365,6 +429,7 @@ useEventListener(window, 'mouseup', clearDraggingState)
                 >
                   {{ column.label }}
                   <button
+                    v-if="!readonly"
                     class="absolute inset-y-0 -right-0.5 z-10 w-1 cursor-col-resize"
                     @mousedown.stop.prevent="startColumnResize($event, column.index)"
                   />
@@ -383,6 +448,7 @@ useEventListener(window, 'mouseup', clearDraggingState)
                 >
                   {{ row.rowNumber }}
                   <button
+                    v-if="!readonly"
                     class="absolute inset-x-0 -bottom-0.5 z-10 h-1 cursor-row-resize"
                     @mousedown.stop.prevent="startRowResize($event, row.index)"
                   />
@@ -403,8 +469,8 @@ useEventListener(window, 'mouseup', clearDraggingState)
                   :key="cell.id"
                   class="relative min-w-0 border-r border-b border-slate-300 bg-white px-0.5 py-0"
                   :class="[
-                    selectedCellIdSet.has(cell.id) ? 'bg-emerald-50/35' : '',
-                    activeCellId === cell.id ? 'z-1' : '',
+                    !readonly && selectedCellIdSet.has(cell.id) ? 'bg-emerald-50/35' : '',
+                    !readonly && activeCellId === cell.id ? 'z-1' : '',
                   ]"
                   :style="{
                     gridColumn: `${cell.col + 1} / span ${cell.colSpan}`,
@@ -417,7 +483,7 @@ useEventListener(window, 'mouseup', clearDraggingState)
                   @drop.prevent="handleDrop($event, cell.id)"
                 >
                   <div
-                    v-if="activeCellId === cell.id && selectedCellIds.length <= 1"
+                    v-if="!readonly && activeCellId === cell.id && selectedCellIds.length <= 1"
                     class="pointer-events-none absolute inset-0 border-2 border-emerald-500"
                   />
 
@@ -431,7 +497,7 @@ useEventListener(window, 'mouseup', clearDraggingState)
                       :key="field.uuid"
                       class="min-w-0 px-0 py-0 transition"
                       :class="[
-                        field.uuid === activeFieldId ? 'bg-sky-50/45' : '',
+                        !readonly && field.uuid === activeFieldId ? 'bg-sky-50/45' : '',
                         cell.fields.length === 1 ? 'flex h-full items-center' : '',
                       ]"
                       @click.stop="handleFieldClick(cell.id, field.uuid)"
@@ -442,17 +508,16 @@ useEventListener(window, 'mouseup', clearDraggingState)
                     </div>
                   </div>
                 </div>
-              </div>
             </div>
           </div>
-        </el-scrollbar>
-      </template>
-
-      <template v-else>
-        <div class="h-full p-4">
-          <div class="h-full border border-slate-200 bg-white" />
         </div>
-      </template>
-    </div>
+      </el-scrollbar>
+    </template>
+
+    <template v-else>
+      <div class="h-full p-4" @contextmenu.prevent="handleContextMenu($event)">
+        <div class="h-full border border-slate-200 bg-white" />
+      </div>
+    </template>
   </section>
 </template>

@@ -30,6 +30,14 @@ export type FormDefinitionEditorDetail = {
   updatedAt: string
 }
 
+export type FormDefinitionHistoryItem = {
+  id: FormEntityId
+  versionNo: number
+  schema: EditorSchema
+  createdAt: string
+  createdBy: string
+}
+
 export type FormDefinitionFormDetail = {
   id: FormEntityId
   name: string

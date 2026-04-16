@@ -13,6 +13,7 @@ export {}
 declare module 'vue' {
   export interface GlobalComponents {
     ElButton: typeof import('element-plus/es')['ElButton']
+    ElCard: typeof import('element-plus/es')['ElCard']
     ElCheckbox: typeof import('element-plus/es')['ElCheckbox']
     ElCheckboxGroup: typeof import('element-plus/es')['ElCheckboxGroup']
     ElConfigProvider: typeof import('element-plus/es')['ElConfigProvider']
@@ -35,6 +36,8 @@ declare module 'vue' {
     ElSelect: typeof import('element-plus/es')['ElSelect']
     ElSwitch: typeof import('element-plus/es')['ElSwitch']
     ElTag: typeof import('element-plus/es')['ElTag']
+    ElTimeline: typeof import('element-plus/es')['ElTimeline']
+    ElTimelineItem: typeof import('element-plus/es')['ElTimelineItem']
     ElTree: typeof import('element-plus/es')['ElTree']
     ElUpload: typeof import('element-plus/es')['ElUpload']
     FormPreviewCanvas: typeof import('./src/components/form-preview/form-preview-canvas.vue')['default']
@@ -50,6 +53,7 @@ declare module 'vue' {
 // For TSX support
 declare global {
   const ElButton: typeof import('element-plus/es')['ElButton']
+  const ElCard: typeof import('element-plus/es')['ElCard']
   const ElCheckbox: typeof import('element-plus/es')['ElCheckbox']
   const ElCheckboxGroup: typeof import('element-plus/es')['ElCheckboxGroup']
   const ElConfigProvider: typeof import('element-plus/es')['ElConfigProvider']
@@ -72,6 +76,8 @@ declare global {
   const ElSelect: typeof import('element-plus/es')['ElSelect']
   const ElSwitch: typeof import('element-plus/es')['ElSwitch']
   const ElTag: typeof import('element-plus/es')['ElTag']
+  const ElTimeline: typeof import('element-plus/es')['ElTimeline']
+  const ElTimelineItem: typeof import('element-plus/es')['ElTimelineItem']
   const ElTree: typeof import('element-plus/es')['ElTree']
   const ElUpload: typeof import('element-plus/es')['ElUpload']
   const FormPreviewCanvas: typeof import('./src/components/form-preview/form-preview-canvas.vue')['default']

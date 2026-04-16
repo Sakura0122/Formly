@@ -3,7 +3,7 @@ import { ElMessage } from 'element-plus'
 import { jsPDF } from 'jspdf'
 import { nextTick } from 'vue'
 
-const PDF_CAPTURE_SCALE = 2
+const PDF_CAPTURE_SCALE = 1.5
 const PDF_A4_WIDTH_MM = 210
 const PDF_A4_HEIGHT_MM = 297
 

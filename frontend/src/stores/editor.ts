@@ -286,6 +286,24 @@ export const useEditorStore = defineStore('editor', () => {
   }
 
   /**
+   * 使用外部给定的整表快照覆盖当前编辑现场，并将原状态压入撤销栈。
+   */
+  const restoreTable = (nextTable: EditorCanvasTable | null) => {
+    if (isSameTableSnapshot(table.value, nextTable)) {
+      return false
+    }
+
+    const changed = commitTableChange(() => cloneTableSnapshot(nextTable))
+
+    if (!changed) {
+      return false
+    }
+
+    resetSelection()
+    return true
+  }
+
+  /**
    * 离开编辑页或切换表单时重置全部状态，避免串表。
    */
   const resetEditorSession = () => {
@@ -664,7 +682,6 @@ export const useEditorStore = defineStore('editor', () => {
     }
 
     if (!activeCell.value) {
-      ElMessage.warning('请先选择要复制的单元格')
       return null
     }
 
@@ -1234,6 +1251,7 @@ export const useEditorStore = defineStore('editor', () => {
     removeActiveField,
     removeField,
     removeActiveFieldOption,
+    restoreTable,
     resetEditorSession,
     resetSelection,
     resizeColumn,
@@ -1352,6 +1370,10 @@ const cloneTableSnapshot = (currentTable: EditorCanvasTable | null): EditorCanva
   }
 
   return cloneEditorValue(currentTable)
+}
+
+const isSameTableSnapshot = (left: EditorCanvasTable | null, right: EditorCanvasTable | null) => {
+  return JSON.stringify(left) === JSON.stringify(right)
 }
 
 /**

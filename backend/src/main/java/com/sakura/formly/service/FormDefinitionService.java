@@ -9,6 +9,7 @@ import com.sakura.formly.model.dto.formdefinition.FormSchemaReq;
 import com.sakura.formly.model.dto.formdefinition.FormDefinitionUpdateReq;
 import com.sakura.formly.model.vo.formdefinition.FormDefinitionEditorVo;
 import com.sakura.formly.model.vo.formdefinition.FormDefinitionFormVo;
+import com.sakura.formly.model.vo.formdefinition.FormDefinitionHistoryItemVo;
 import com.sakura.formly.model.vo.formdefinition.FormDefinitionListVo;
 import com.sakura.formly.model.vo.formdefinition.FormDefinitionPersistVo;
 import com.sakura.formly.model.vo.formdefinition.FormSimpleVo;
@@ -29,6 +30,8 @@ public interface FormDefinitionService extends IService<FormDefinition> {
     FormDefinitionEditorVo getFormEditorDetail(Long id);
 
     FormDefinitionFormVo getFormPreviewDetail(Long id);
+
+    List<FormDefinitionHistoryItemVo> getFormHistory(Long id);
 
     PageVo<FormDefinitionListVo> pageFormDefinitions(FormDefinitionPageReq request);
 
