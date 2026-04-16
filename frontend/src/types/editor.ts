@@ -144,6 +144,7 @@ export type EditorContextMenuCommand =
   | 'insert-row-below'
   | 'insert-column-left'
   | 'insert-column-right'
+  | 'delete-components'
   | 'delete-row'
   | 'delete-column'
 

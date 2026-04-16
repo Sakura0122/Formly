@@ -303,16 +303,61 @@ export const useEditorStore = defineStore('editor', () => {
   }
 
   /**
-   * 组件点击优先复用当前选区；没有多选时退回到当前焦点单元格。
+   * 统一收口目标单元格：去重、过滤失效 id，避免后续批量操作重复做同样判断。
    */
-  const getSelectedPlacementCellIds = () => {
-    const targetCellIds = selectedCellIds.value.length
-      ? [...selectedCellIds.value]
-      : activeCellId.value
-        ? [activeCellId.value]
-        : []
+  const normalizeTargetCellIds = (cellIds: string[]) => {
+    return [...new Set(cellIds)].filter((cellId) => Boolean(getCellById(table.value, cellId)))
+  }
 
-    return targetCellIds.filter((cellId) => Boolean(getCellById(table.value, cellId)))
+  /**
+   * 批量操作默认优先复用当前选区；无多选时退回到活动单元格。
+   */
+  const getCurrentTargetCellIds = () => {
+    return normalizeTargetCellIds(
+      selectedCellIds.value.length ? [...selectedCellIds.value] : activeCellId.value ? [activeCellId.value] : [],
+    )
+  }
+
+  /**
+   * 操作完成后统一恢复目标选区与焦点格，避免每个命令各自维护一套同步逻辑。
+   */
+  const syncSelectionByTargetCellIds = (
+    cellIds: string[],
+    options: {
+      activeFieldId?: string
+      syncActiveFieldByCell?: boolean
+    } = {},
+  ) => {
+    const targetCellIds = normalizeTargetCellIds(cellIds)
+    const focusCellId = targetCellIds.find((cellId) => cellId === activeCellId.value) ?? (targetCellIds[0] ?? '')
+
+    if (!focusCellId) {
+      if (options.activeFieldId !== undefined) {
+        activeFieldId.value = options.activeFieldId
+      }
+
+      return false
+    }
+
+    if (targetCellIds.length === 1) {
+      collapseSelectionToCell(focusCellId)
+    } else {
+      activeCellId.value = focusCellId
+      selectedCellIds.value = [...targetCellIds]
+      selectionAnchorCellId.value = targetCellIds.includes(selectionAnchorCellId.value)
+        ? selectionAnchorCellId.value
+        : focusCellId
+    }
+
+    if (options.syncActiveFieldByCell) {
+      syncActiveFieldByCell(focusCellId)
+    }
+
+    if (options.activeFieldId !== undefined) {
+      activeFieldId.value = options.activeFieldId
+    }
+
+    return true
   }
 
   /**
@@ -320,10 +365,10 @@ export const useEditorStore = defineStore('editor', () => {
    */
   const getDropPlacementCellIds = (cellId: string) => {
     if (selectedCellIds.value.length > 1 && selectedCellIds.value.includes(cellId)) {
-      return getSelectedPlacementCellIds()
+      return getCurrentTargetCellIds()
     }
 
-    return getCellById(table.value, cellId) ? [cellId] : []
+    return normalizeTargetCellIds([cellId])
   }
 
   /**
@@ -335,7 +380,7 @@ export const useEditorStore = defineStore('editor', () => {
       return false
     }
 
-    const targetCellIds = [...new Set(cellIds)].filter((cellId) => Boolean(getCellById(table.value, cellId)))
+    const targetCellIds = normalizeTargetCellIds(cellIds)
 
     if (!targetCellIds.length) {
       return false
@@ -372,31 +417,18 @@ export const useEditorStore = defineStore('editor', () => {
       return false
     }
 
-    const focusCellId = targetCellIds.includes(activeCellId.value) ? activeCellId.value : (targetCellIds[0] ?? '')
+    const focusCellId = targetCellIds.find((cellId) => cellId === activeCellId.value) ?? (targetCellIds[0] ?? '')
 
-    if (!focusCellId) {
-      return true
-    }
-
-    if (targetCellIds.length === 1) {
-      collapseSelectionToCell(focusCellId)
-      activeFieldId.value = appendedFieldMap.get(focusCellId)?.uuid ?? ''
-      return true
-    }
-
-    activeCellId.value = focusCellId
-    selectedCellIds.value = [...targetCellIds]
-    selectionAnchorCellId.value = selectionAnchorCellId.value || focusCellId
-    activeFieldId.value = appendedFieldMap.get(focusCellId)?.uuid ?? ''
-
-    return true
+    return syncSelectionByTargetCellIds(targetCellIds, {
+      activeFieldId: appendedFieldMap.get(focusCellId)?.uuid ?? '',
+    })
   }
 
   /**
    * 组件库点击优先按当前选区批量追加；没有多选时退回到焦点单元格。
    */
   const selectItem = (item: EditorPaletteItem) => {
-    const targetCellIds = getSelectedPlacementCellIds()
+    const targetCellIds = getCurrentTargetCellIds()
 
     if (!targetCellIds.length) {
       ElMessage.warning('请先选择单元格')
@@ -648,16 +680,66 @@ export const useEditorStore = defineStore('editor', () => {
       return []
     }
 
-    if (selectedCellIds.value.length) {
-      return [...selectedCellIds.value]
-    }
+    const targetCellIds = getCurrentTargetCellIds()
 
-    if (activeCell.value) {
-      return [activeCell.value.id]
+    if (targetCellIds.length) {
+      return targetCellIds
     }
 
     ElMessage.warning('请先选择要粘贴的单元格')
     return []
+  }
+
+  /**
+   * 批量清空目标单元格中的组件，保留单元格与选区结构。
+   */
+  const clearFieldsInCells = (cellIds: string[]) => {
+    if (!table.value) {
+      return false
+    }
+
+    const targetCellIds = normalizeTargetCellIds(cellIds)
+
+    if (!targetCellIds.length) {
+      return false
+    }
+
+    const targetCellIdSet = new Set(targetCellIds)
+    const changed = commitTableChange((currentTable) => {
+      if (!currentTable) {
+        return currentTable
+      }
+
+      let hasChanged = false
+      const nextCells = currentTable.cells.map((cell) => {
+        if (!targetCellIdSet.has(cell.id) || !cell.fields.length) {
+          return cell
+        }
+
+        hasChanged = true
+        return {
+          ...cell,
+          fields: [],
+        }
+      })
+
+      if (!hasChanged) {
+        return currentTable
+      }
+
+      return {
+        ...currentTable,
+        cells: nextCells,
+      }
+    })
+
+    if (!changed) {
+      return false
+    }
+
+    return syncSelectionByTargetCellIds(targetCellIds, {
+      activeFieldId: '',
+    })
   }
 
   /**
@@ -729,21 +811,9 @@ export const useEditorStore = defineStore('editor', () => {
       return false
     }
 
-    const focusCellId = targetCellIds.includes(activeCellId.value) ? activeCellId.value : (targetCellIds[0] ?? '')
-
-    if (!focusCellId) {
-      return false
-    }
-
-    if (targetCellIds.length === 1) {
-      collapseSelectionToCell(focusCellId)
-    } else {
-      activeCellId.value = focusCellId
-      selectionAnchorCellId.value = selectionAnchorCellId.value || focusCellId
-      syncActiveFieldByCell(focusCellId)
-    }
-
-    return true
+    return syncSelectionByTargetCellIds(targetCellIds, {
+      syncActiveFieldByCell: true,
+    })
   }
 
   /**
@@ -913,6 +983,14 @@ export const useEditorStore = defineStore('editor', () => {
           columnInsertLimit,
           '列',
         ),
+        {
+          command: 'delete-components',
+          label: '删除组件',
+          icon: 'mdi:delete-outline',
+          disabled: !getCurrentTargetCellIds().some((cellId) => {
+            return Boolean(getCellById(table.value, cellId)?.fields.length)
+          }),
+        },
         {
           command: 'delete-row',
           label: '删除行',
@@ -1086,6 +1164,11 @@ export const useEditorStore = defineStore('editor', () => {
         }
 
         resetSelection()
+        return
+      }
+
+      case 'delete-components': {
+        clearFieldsInCells(getCurrentTargetCellIds())
         return
       }
 
