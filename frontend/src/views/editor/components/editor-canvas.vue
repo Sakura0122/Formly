@@ -175,6 +175,39 @@ const selectedCellIdSet = computed(() => {
   return new Set(selectedCellIds.value)
 })
 
+const selectedHeaderIndexes = computed(() => {
+  const rows = new Set<number>()
+  const columns = new Set<number>()
+
+  if (!selectedCellIdSet.value.size) {
+    return {
+      rows,
+      columns,
+    }
+  }
+
+  visibleCells.value.forEach((cell) => {
+    if (!selectedCellIdSet.value.has(cell.id)) {
+      return
+    }
+
+    const range = getCellRange(cell)
+
+    for (let row = range.rowStart; row <= range.rowEnd; row += 1) {
+      rows.add(row)
+    }
+
+    for (let column = range.colStart; column <= range.colEnd; column += 1) {
+      columns.add(column)
+    }
+  })
+
+  return {
+    rows,
+    columns,
+  }
+})
+
 const multiSelectionBounds = computed(() => {
   if (selectedCellIds.value.length < 2) {
     return null
@@ -421,7 +454,12 @@ useEventListener(window, 'mouseup', clearDraggingState)
               <div
                 v-for="column in displayColumnHeaders"
                 :key="column.columnNumber"
-                class="relative flex items-center justify-center border-r border-b border-slate-300 bg-[#f2f6f7] text-[10px] font-medium text-[#6f8686]"
+                class="relative flex items-center justify-center border-r border-b border-slate-300 text-[10px] font-medium"
+                :class="
+                  selectedHeaderIndexes.columns.has(column.columnNumber)
+                    ? 'border-b-emerald-500 bg-[#d3eee6] text-emerald-700'
+                    : 'bg-[#f2f6f7] text-[#6f8686]'
+                "
                 :style="{
                   gridColumn: `${column.columnNumber + 1} / ${column.columnNumber + 2}`,
                   gridRow: '1 / 2',
@@ -439,8 +477,13 @@ useEventListener(window, 'mouseup', clearDraggingState)
               <div
                 v-for="row in rowHeaders"
                 :key="row.rowNumber"
-                class="relative flex items-center justify-center border-r border-b border-slate-300 bg-[#f2f6f7] text-[10px] font-medium text-[#6f8686]"
-                :class="selectedCellIdSet.size ? 'select-none' : ''"
+                class="relative flex items-center justify-center border-r border-b border-slate-300 text-[10px] font-medium"
+                :class="[
+                  selectedHeaderIndexes.rows.has(row.rowNumber)
+                    ? 'border-r-emerald-500 bg-[#d3eee6] text-emerald-700'
+                    : 'bg-[#f2f6f7] text-[#6f8686]',
+                  selectedCellIdSet.size ? 'select-none' : '',
+                ]"
                 :style="{
                   gridColumn: '1 / 2',
                   gridRow: `${row.rowNumber + 1} / ${row.rowNumber + 2}`,
@@ -457,10 +500,11 @@ useEventListener(window, 'mouseup', clearDraggingState)
               <!-- 多选边框 -->
               <div
                 v-if="multiSelectionBounds"
-                class="pointer-events-none z-2 border-2 border-emerald-500 bg-emerald-100/10"
+                class="pointer-events-none z-2 border-2 border-emerald-500"
                 :style="{
                   gridColumn: `${multiSelectionBounds.colStart + 1} / ${multiSelectionBounds.colEnd + 2}`,
                   gridRow: `${multiSelectionBounds.rowStart + 1} / ${multiSelectionBounds.rowEnd + 2}`,
+                  backgroundColor: 'color-mix(in srgb, var(--el-color-primary) 30%, transparent)',
                 }"
               />
 
