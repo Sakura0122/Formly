@@ -367,9 +367,14 @@ watch(searchKeyword, (keyword) => {
 </script>
 
 <template>
-  <div class="flex h-screen overflow-hidden bg-[#eef3f8] text-slate-900">
-    <aside class="flex w-65 shrink-0 flex-col border-r border-slate-200 bg-white">
-      <div class="border-b border-slate-100 px-5 py-5">
+  <div class="flex h-screen gap-7 overflow-hidden bg-[#f0f2f5] p-7 text-slate-900">
+    <aside class="flex w-70 shrink-0 flex-col rounded-xl bg-white p-6">
+      <div class="mb-4">
+        <div class="mb-4 flex items-center gap-3 text-base font-medium text-[#303133]">
+          <Icon class="text-amber-400" icon="solar:folder-with-files-bold" width="22" />
+          <span>表单模板库</span>
+        </div>
+
         <div class="flex items-center gap-3">
           <el-input v-model="searchKeyword" clearable placeholder="请输入名称">
             <template #prefix>
@@ -378,7 +383,7 @@ watch(searchKeyword, (keyword) => {
           </el-input>
 
           <el-dropdown placement="bottom-end" trigger="click">
-            <el-button>
+            <el-button class="w-8">
               <Icon icon="ep:plus" />
             </el-button>
 
@@ -402,10 +407,10 @@ watch(searchKeyword, (keyword) => {
         </div>
       </div>
 
-      <div class="min-h-0 flex-1 px-4 py-4" v-loading="catalogTreeLoading">
+      <div class="min-h-0 flex-1" v-loading="catalogTreeLoading">
         <div
           v-if="filteredCatalogTree.length === 0"
-          class="flex h-full flex-col items-center justify-center rounded-3xl border border-dashed border-slate-200 bg-slate-50 px-6 text-center"
+          class="flex h-full flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50 px-6 text-center"
         >
           <Icon class="mb-3 text-slate-300" icon="solar:documents-linear" width="40" />
           <p class="text-sm text-slate-500">
@@ -440,9 +445,9 @@ watch(searchKeyword, (keyword) => {
       </div>
     </aside>
 
-    <section class="min-w-0 flex-1 overflow-hidden">
+    <section class="min-w-0 flex-1 overflow-hidden rounded-xl bg-white">
       <div class="flex h-full flex-col">
-        <header class="flex items-center justify-between border-b border-slate-200 bg-white px-8 py-5">
+        <header class="flex h-28 items-center justify-between rounded-t-xl bg-white px-8 py-5">
           <div v-if="selectedFormDetail" class="flex min-w-0 flex-wrap items-center gap-x-8 gap-y-3">
             <div class="flex items-center gap-1">
               <span class="text-sm text-slate-400">绑定ID：</span>
@@ -490,7 +495,7 @@ watch(searchKeyword, (keyword) => {
               </template>
             </el-dropdown>
 
-            <el-button disabled plain>
+            <el-button disabled plain class="ml-3">
               <Icon class="mr-1 text-base" icon="solar:settings-linear" />
               数据管理
             </el-button>
@@ -501,17 +506,17 @@ watch(searchKeyword, (keyword) => {
           </div>
         </header>
 
-        <div v-loading="formDetailLoading" class="min-h-0 flex-1 p-5">
+        <div v-loading="formDetailLoading" class="min-h-0 flex-1 bg-[#f8f8f9] px-5 py-8">
           <div
             v-if="!selectedFormDetail"
-            class="flex h-full min-h-120 flex-col items-center justify-center border border-dashed border-slate-200 bg-white/80 text-center"
+            class="flex h-full min-h-120 flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-white text-center"
           >
             <Icon class="mb-4 text-slate-300" icon="solar:document-add-linear" width="54" />
             <p class="text-lg font-medium text-slate-700">选择一个表单开始管理</p>
             <p class="mt-2 text-sm text-slate-400">这里会展示表单基础信息和预览区域</p>
           </div>
 
-          <div v-else class="h-full overflow-hidden bg-[#f5f8fc] px-4 shadow-[0_18px_48px_rgba(148,163,184,0.08)]">
+          <div v-else class="h-full overflow-hidden bg-[#f8f8f9] px-4">
             <el-scrollbar v-if="hasPublishedPreview" class="h-full">
               <div class="flex min-h-full items-start justify-center py-4">
                 <div class="shrink-0 border border-slate-200 bg-white p-8 shadow-[0_10px_36px_rgba(148,163,184,0.12)]">
@@ -567,5 +572,17 @@ watch(searchKeyword, (keyword) => {
 .form-manage-more-trigger:active {
   outline: none;
   box-shadow: none;
+}
+
+:deep(.el-tree-node__content) {
+  height: 36px;
+}
+
+:deep(.el-tree--highlight-current .el-tree-node.is-current > .el-tree-node__content) {
+  background-color: #f5f7fa;
+}
+
+:deep(.el-tree-node__content:hover) {
+  background-color: #f5f7fa;
 }
 </style>
